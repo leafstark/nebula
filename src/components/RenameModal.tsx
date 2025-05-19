@@ -21,7 +21,7 @@ export default function RenameModal({ visible, value, setValue, onOk, onCancel }
           maxLength={30}
           autoFocus
         />
-        <div className="flex gap-3 justify-end mt-2">
+        <div className="flex gap-3 justify-center mt-2">
           <Button onClick={onCancel}>取消</Button>
           <Button type="primary" onClick={onOk} disabled={!value.trim()}>
             确定

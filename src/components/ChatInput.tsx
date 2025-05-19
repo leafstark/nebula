@@ -27,14 +27,6 @@ export default function ChatInput({ input, setInput, onSend }: Props) {
           }
         }}
       />
-      <Button
-        type="primary"
-        htmlType="submit"
-        className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition"
-        disabled={!input.trim()}
-      >
-        发送
-      </Button>
     </form>
   )
 }
