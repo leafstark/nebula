@@ -30,7 +30,10 @@ function App() {
   ])
   const [activeSessionId, setActiveSessionId] = useState(1)
   const [input, setInput] = useState("")
-  const [model, setModel] = useState(MODEL_LIST[0])
+  const [model, setModel] = useState(() => {
+    const saved = localStorage.getItem("tiger-gpt-model")
+    return saved && MODEL_LIST.includes(saved) ? saved : MODEL_LIST[0]
+  })
   const [isInitialized, setIsInitialized] = useState(false)
   const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [renameSessionId, setRenameSessionId] = useState<number | null>(null)
@@ -75,6 +78,12 @@ function App() {
     if (!isInitialized) return
     localStorage.setItem("tiger-gpt-active-session-id", String(activeSessionId))
   }, [activeSessionId, isInitialized])
+
+  // 记住用户上次选择的model
+  useEffect(() => {
+    if (!isInitialized) return
+    localStorage.setItem("tiger-gpt-model", model)
+  }, [model, isInitialized])
 
   // 新建会话
   const handleNewSession = () => {
