@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react"
-import { Button, Select, Input, Divider, Dropdown, Popconfirm } from "antd"
-import { DeleteOutlined, PlusOutlined, MoreOutlined, EditFilled } from "@ant-design/icons"
+import { Select } from "antd"
 import "antd/dist/reset.css"
+import SessionList, { type Session } from "./components/SessionList"
+import ChatWindow from "./components/ChatWindow"
+import ChatInput from "./components/ChatInput"
+import RenameModal from "./components/RenameModal"
 
 const MODEL_LIST = [
   "gpt-4o",
@@ -13,7 +16,7 @@ const MODEL_LIST = [
 ]
 
 function App() {
-  const [sessions, setSessions] = useState([
+  const [sessions, setSessions] = useState<Session[]>([
     {
       id: 1,
       name: "默认会话",
@@ -62,9 +65,8 @@ function App() {
     try {
       localStorage.setItem("tiger-gpt-sessions", JSON.stringify(sessions))
     } catch (e) {
-      if (e.name === "QuotaExceededError") {
+      if (e instanceof Error && e.name === "QuotaExceededError") {
         alert("存储空间已满，请删除部分历史会话后重试。")
-        // 或自动清理最旧的会话后重试
       }
     }
   }, [sessions, isInitialized])
@@ -253,169 +255,29 @@ function App() {
       {/* 主体区域 */}
       <main className="flex-1 flex flex-row overflow-hidden">
         {/* 侧边栏：会话列表 */}
-        <aside className="w-72 max-h-screen overflow-y-auto bg-white/90 dark:bg-gray-950/90 border-r border-blue-100 dark:border-blue-900 p-6 flex flex-col shadow-md">
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            className="w-full"
-            onClick={handleNewSession}
-          >
-            新建会话
-          </Button>
-          <Divider />
-          <div className="flex-1 overflow-y-auto">
-            {sessions.length === 0 ? (
-              <div className="text-blue-300 dark:text-blue-800 text-sm text-center mt-16">
-                暂无会话
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {sessions.map((s) => {
-                  const menuItems = [
-                    {
-                      key: "rename",
-                      icon: <EditFilled />,
-                      label: (
-                        <span onClick={() => handleRenameSession(s.id, s.name)}>重命名</span>
-                      ),
-                    },
-                    {
-                      key: "delete",
-                      icon: <DeleteOutlined />,
-                      label: (
-                        <Popconfirm
-                          title="确定要删除该会话吗？"
-                          okText="删除"
-                          cancelText="取消"
-                          onConfirm={() => handleDeleteSession(s.id)}
-                        >
-                          删除
-                        </Popconfirm>
-                      ),
-                    },
-                  ]
-                  return (
-                    <li key={s.id} className="flex items-center group relative">
-                      <Button
-                        type={s.id === activeSessionId ? "primary" : "default"}
-                        className={`flex-1 text-left px-3 py-2 rounded-lg font-medium truncate ${
-                          s.id === activeSessionId
-                            ? "!bg-blue-100 !text-blue-700 dark:!bg-blue-900 dark:!text-blue-200 shadow"
-                            : "hover:!bg-blue-50 dark:hover:!bg-blue-800 !text-gray-700 dark:!text-gray-200"
-                        }`}
-                        onClick={() => handleSelectSession(s.id)}
-                        style={{
-                          boxShadow: "none",
-                          border: "none",
-                          background: "none",
-                        }}
-                      >
-                        {s.name}
-                      </Button>
-                      <Dropdown
-                        trigger={["click"]}
-                        menu={{ items: menuItems }}
-                        placement="bottomRight"
-                      >
-                        <Button
-                          type="text"
-                          icon={<MoreOutlined />}
-                          className={`right-2 absolute text-lg transition ${
-                            s.id === activeSessionId
-                              ? "flex"
-                              : "hidden group-hover:flex"
-                          }`}
-                          title="更多操作"
-                        />
-                      </Dropdown>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        </aside>
+        <SessionList
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onNewSession={handleNewSession}
+          onSelectSession={handleSelectSession}
+          onDeleteSession={handleDeleteSession}
+          onRenameSession={handleRenameSession}
+        />
         {/* 聊天主窗口 */}
         <section className="flex-1 flex flex-col justify-end bg-transparent relative min-h-0 h-[calc(100vh-70px)]">
-          <div className="flex-1 min-h-0 overflow-y-auto px-12 pt-8 pb-40 flex flex-col gap-12">
-            {current && current.messages.length > 0 ? (
-              current.messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
-                  } group relative`}
-                >
-                  <div
-                    className={`px-4 py-2 rounded-2xl shadow text-base whitespace-pre-line break-words relative ${
-                      msg.role === "user"
-                        ? "bg-blue-500 text-white rounded-br-md"
-                        : "bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded-bl-md"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-blue-300 dark:text-blue-800 text-lg text-center mt-32 select-none">
-                开始新的对话吧！
-              </div>
-            )}
-          </div>
+          <ChatWindow messages={current?.messages || []} />
           {/* 输入栏 */}
-          <form
-            className="absolute left-1/2 bottom-8 -translate-x-1/2 z-30 flex items-end gap-3 bg-white/80 dark:bg-gray-950/80 border border-blue-100 dark:border-blue-900 rounded-xl shadow-xl px-6 py-4 backdrop-blur-md"
-            style={{ width: "min(720px,90vw)" }}
-            onSubmit={handleSend}
-          >
-            <Input.TextArea
-              className="flex-1 resize-none rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-gray-800 p-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[48px] max-h-40 shadow-inner transition"
-              placeholder="输入你的问题..."
-              autoSize={{ minRows: 1, maxRows: 6 }}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              // 兼容中文输入法，isComposing 实际存在于 KeyboardEvent 的 nativeEvent 上
-              onPressEnter={(e) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                if (!e.shiftKey && !(e.nativeEvent as any).isComposing) {
-                  e.preventDefault()
-                  if (input.trim()) handleSend(e)
-                }
-              }}
-            />
-            <Button
-              type="primary"
-              htmlType="submit"
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold shadow hover:from-blue-600 hover:to-blue-800 transition"
-              disabled={!input.trim()}
-            >
-              发送
-            </Button>
-          </form>
+          <ChatInput input={input} setInput={setInput} onSend={handleSend} />
         </section>
       </main>
       {/* 会话重命名弹窗 */}
-      {renameModalVisible && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-8 min-w-[320px] flex flex-col gap-4">
-            <div className="text-lg font-bold mb-2">重命名会话</div>
-            <Input
-              value={renameValue}
-              onChange={e => setRenameValue(e.target.value)}
-              onPressEnter={handleRenameOk}
-              maxLength={30}
-              autoFocus
-            />
-            <div className="flex gap-3 justify-end mt-2">
-              <Button onClick={handleRenameCancel}>取消</Button>
-              <Button type="primary" onClick={handleRenameOk} disabled={!renameValue.trim()}>
-                确定
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <RenameModal
+        visible={renameModalVisible}
+        value={renameValue}
+        setValue={setRenameValue}
+        onOk={handleRenameOk}
+        onCancel={handleRenameCancel}
+      />
     </div>
   )
 }
