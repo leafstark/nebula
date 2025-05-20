@@ -108,7 +108,7 @@ export default function SessionList({
                     }`}
                     onClick={() => onSelectSession(s.id)}
                   >
-                    <span className="max-w-full pr-4 truncate">{s.name}</span>
+                    <span className="max-w-full pr-4 truncate text-left w-full">{s.name}</span>
                   </Button>
                   <Dropdown
                     trigger={["click"]}
