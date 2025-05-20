@@ -83,20 +83,15 @@ export default function SessionList({
               return (
                 <li key={s.id} className="flex items-center group relative">
                   <Button
-                    type={s.id === activeSessionId ? "primary" : "default"}
-                    className={`flex-1 text-left px-3 py-2 rounded-lg font-medium truncate ${
+                    type="text"
+                    className={`max-w-full pl-3 ${
                       s.id === activeSessionId
                         ? "!bg-blue-100 !text-blue-700 dark:!bg-blue-900 dark:!text-blue-200 shadow"
                         : "hover:!bg-blue-50 dark:hover:!bg-blue-800 !text-gray-700 dark:!text-gray-200"
                     }`}
                     onClick={() => onSelectSession(s.id)}
-                    style={{
-                      boxShadow: "none",
-                      border: "none",
-                      background: "none",
-                    }}
                   >
-                    {s.name}
+                    <span className="max-w-full pr-4 truncate">{s.name}</span>
                   </Button>
                   <Dropdown
                     trigger={["click"]}
@@ -106,7 +101,7 @@ export default function SessionList({
                     <Button
                       type="text"
                       icon={<MoreOutlined />}
-                      className={`right-2 absolute text-lg transition ${
+                      className={`right-1 absolute text-lg transition ${
                         s.id === activeSessionId
                           ? "flex"
                           : "hidden group-hover:flex"
