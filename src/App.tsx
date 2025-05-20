@@ -48,7 +48,7 @@ function App() {
             loadedSessions.some((s) => s.id === hashSessionIdNum)
           ) {
             newActiveSessionId = hashSessionIdNum
-          }
+          } 
         }
       } catch {
         // 忽略解析错误，视为没有已保存的会话
@@ -323,7 +323,12 @@ function App() {
             activeSessionId={activeSessionId}
           />
           {/* 输入栏 */}
-          <ChatInput input={input} setInput={setInput} onSend={handleSend} />
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSend={handleSend}
+            activeSessionId={activeSessionId}
+          />
         </section>
       </main>
       {/* 会话重命名弹窗 */}

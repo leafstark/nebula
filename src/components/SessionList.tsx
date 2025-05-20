@@ -21,7 +21,7 @@ export interface Session {
 
 interface Props {
   sessions: Session[]
-  activeSessionId: number
+  activeSessionId: number | null
   onNewSession: () => void
   onSelectSession: (id: number) => void
   onDeleteSession: (id: number) => void

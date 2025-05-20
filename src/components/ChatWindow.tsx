@@ -7,7 +7,7 @@ interface Message {
 
 interface Props {
   messages: Message[]
-  activeSessionId: number // 新增 activeSessionId prop
+  activeSessionId: number | null // 新增 activeSessionId prop
 }
 
 export default function ChatWindow({ messages, activeSessionId }: Props) {
@@ -97,7 +97,7 @@ export default function ChatWindow({ messages, activeSessionId }: Props) {
             </div>
           ))
         ) : (
-          <div className="text-blue-300 dark:text-blue-800 text-lg text-center mt-32 select-none">
+          <div className="text-blue-300 dark:text-blue-800 text-xl text-center mt-40 select-none">
             开始新的对话吧！
           </div>
         )}
