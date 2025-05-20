@@ -1,3 +1,4 @@
+import { Spin } from "antd"
 import { useRef, useEffect } from "react"
 
 interface Message {
@@ -7,16 +8,21 @@ interface Message {
 
 interface Props {
   messages: Message[]
-  activeSessionId: number | null // 新增 activeSessionId prop
+  activeSessionId: number | null
 }
 
 export default function ChatWindow({ messages, activeSessionId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const lastUserMsgRef = useRef<HTMLDivElement>(null)
+  const lastUserMsgRef = useRef<HTMLDivElement>(null) // 保留，虽然当前滚动逻辑不直接用它定位
   const prevActiveSessionIdRef = useRef<number | null>(null)
-  const isInitialMountRef = useRef(true) // 用于处理首次加载
+  const isInitialMountRef = useRef(true)
+  // 用于存储上一次渲染时 messages 数组的长度
+  const prevMessagesLengthRef = useRef(messages.length)
 
-  // 找到最后一条用户消息的索引
+  const userHasManuallyScrolledRef = useRef(false)
+  // isAutoScrollingRef 现在表示一个由程序发起的滚动是否正在进行中
+  const isAutoScrollingRef = useRef(false)
+
   const lastUserIdx = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "user") return i
@@ -24,44 +30,122 @@ export default function ChatWindow({ messages, activeSessionId }: Props) {
     return -1
   })()
 
-  // 滚动逻辑
+  // 监听滚动相关事件
   useEffect(() => {
-    if (containerRef.current) {
-      const container = containerRef.current
-      let scrollBehavior: "auto" | "smooth" = "auto"
+    const scrollContainer = containerRef.current
+    if (!scrollContainer) return
 
-      if (isInitialMountRef.current) {
-        // 首次挂载，瞬时滚动
-        scrollBehavior = "auto"
-        isInitialMountRef.current = false
-      } else if (prevActiveSessionIdRef.current !== activeSessionId) {
-        // activeSessionId 变化，说明切换了会话，瞬时滚动
-        scrollBehavior = "auto"
-      } else {
-        // activeSessionId 未变，说明是当前会话有新消息，平滑滚动
-        scrollBehavior = "smooth"
+    const handleUserScrollInitiation = () => {
+      // 如果用户通过滚轮或触摸开始滚动，则认为中断了任何进行中的自动滚动
+      if (isAutoScrollingRef.current) {
+        isAutoScrollingRef.current = false
       }
-      prevActiveSessionIdRef.current = activeSessionId
+      // userHasManuallyScrolledRef 的更新将由 'scroll' 事件处理
+    }
 
-      if (lastUserMsgRef.current) {
-        const target = lastUserMsgRef.current
-        container.scrollTo({
-          top: target.offsetTop - 20,
-          behavior: scrollBehavior,
-        })
-      } else if (messages.length > 0) {
-        // 如果没有用户消息，但有其他消息，则滚动到容器最底部
-        if (scrollBehavior === "smooth") {
-          container.scrollTo({
-            top: container.scrollHeight,
-            behavior: "smooth",
-          })
-        } else {
-          container.scrollTop = container.scrollHeight // 瞬时滚动
-        }
+    const handleScroll = () => {
+      if (!containerRef.current) return
+
+      // 如果是程序触发的滚动正在进行中，则不处理用户手动滚动逻辑
+      if (isAutoScrollingRef.current) {
+        return
+      }
+
+      // 否则，这是用户滚动或已结束的程序滚动的后续事件
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current
+      const threshold = 10 // 滚动到底部的容差
+
+      if (scrollTop + clientHeight < scrollHeight - threshold) {
+        userHasManuallyScrolledRef.current = true
+      } else {
+        userHasManuallyScrolledRef.current = false
       }
     }
-  }, [messages, lastUserIdx, activeSessionId]) // 依赖项增加 activeSessionId
+
+    const handleScrollEnd = () => {
+      // 当任何滚动（程序或用户）结束时触发
+      // 如果是程序触发的滚动刚刚自然结束（未被用户中断）
+      if (isAutoScrollingRef.current) {
+        isAutoScrollingRef.current = false
+        // 如果程序滚动结束后位于底部，确保用户手动滚动状态被重置
+        if (containerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = containerRef.current
+          if (scrollTop + clientHeight >= scrollHeight - 1) {
+            // 更小的容差判断是否在底部
+            userHasManuallyScrolledRef.current = false
+          }
+        }
+      }
+      // 如果是用户滚动结束，userHasManuallyScrolledRef 已由 handleScroll 更新
+    }
+
+    // 添加事件监听器
+    scrollContainer.addEventListener("wheel", handleUserScrollInitiation, {
+      passive: true,
+    })
+    scrollContainer.addEventListener("touchstart", handleUserScrollInitiation, {
+      passive: true,
+    })
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true })
+    scrollContainer.addEventListener("scrollend", handleScrollEnd)
+
+    return () => {
+      // 移除事件监听器
+      scrollContainer.removeEventListener("wheel", handleUserScrollInitiation)
+      scrollContainer.removeEventListener(
+        "touchstart",
+        handleUserScrollInitiation
+      )
+      scrollContainer.removeEventListener("scroll", handleScroll)
+      scrollContainer.removeEventListener("scrollend", handleScrollEnd)
+    }
+  }, []) // 空依赖数组，仅在挂载和卸载时运行
+
+  // 滚动逻辑
+  useEffect(() => {
+    const currentMessagesLength = messages.length
+
+    if (containerRef.current) {
+      const container = containerRef.current
+      let scrollBehavior: "auto" | "smooth" = "smooth"
+      let forceScroll = false
+
+      if (isInitialMountRef.current) {
+        scrollBehavior = "auto"
+        isInitialMountRef.current = false
+        userHasManuallyScrolledRef.current = false
+        forceScroll = true
+      } else if (prevActiveSessionIdRef.current !== activeSessionId) {
+        scrollBehavior = "auto"
+        userHasManuallyScrolledRef.current = false
+        forceScroll = true
+      } else if (currentMessagesLength > prevMessagesLengthRef.current) {
+        // 新的消息项被添加到数组中 (例如用户发送了消息，或AI开始了新的回复)
+        // 此时应该滚动到新消息，因此重置手动滚动状态
+        userHasManuallyScrolledRef.current = false
+        // 对于活跃会话中的新消息，通常使用平滑滚动
+      }
+
+      if (!forceScroll && userHasManuallyScrolledRef.current) {
+        prevActiveSessionIdRef.current = activeSessionId
+        prevMessagesLengthRef.current = currentMessagesLength
+        return
+      }
+
+      // 标记即将进行自动滚动
+      // isAutoScrollingRef 会在 scrollend 或用户主动滚动时重置为 false
+      isAutoScrollingRef.current = true
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: scrollBehavior,
+      })
+
+      prevActiveSessionIdRef.current = activeSessionId
+    }
+
+    // 更新上一次的 messages 长度，为下一次 effect 执行做准备
+    prevMessagesLengthRef.current = currentMessagesLength
+  }, [messages, activeSessionId])
 
   return (
     <div
@@ -69,42 +153,37 @@ export default function ChatWindow({ messages, activeSessionId }: Props) {
       className="flex-1 min-h-0 overflow-y-auto px-12 pt-8 pb-40"
     >
       <div className="flex flex-col gap-12 max-w-200 mx-auto">
-        {messages.length > 0 ? (
-          messages.map((msg, idx) => (
-            <div // ref 作用于此 div
-              key={idx}
-              ref={idx === lastUserIdx ? lastUserMsgRef : undefined}
-            >
+        {messages.length > 0
+          ? messages.map((msg, idx) => (
               <div
-                className={`flex ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                } group relative`}
+                key={idx}
+                ref={idx === lastUserIdx ? lastUserMsgRef : undefined}
               >
                 <div
-                  className={`px-4 py-2 rounded-2xl shadow text-base whitespace-pre-line break-words relative ${
-                    msg.role === "user"
-                      ? "bg-blue-500 text-white rounded-br-md"
-                      : "bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded-bl-md"
-                  }`}
+                  className={`flex ${
+                    msg.role === "user" ? "justify-end" : "justify-start"
+                  } group relative`}
                 >
-                  {msg.role === "assistant" && !msg.content ? (
-                    <span className="animate-pulse">正在思考</span>
-                  ) : (
-                    msg.content
-                  )}
+                  <div
+                    className={`px-4 py-2 rounded-2xl shadow text-base whitespace-pre-line break-words relative ${
+                      msg.role === "user"
+                        ? "bg-blue-500 text-white rounded-br-md"
+                        : "bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded-bl-md"
+                    }`}
+                  >
+                    {msg.role === "assistant" && !msg.content ? (
+                      <div className="flex items-center gap-2">
+                        <Spin size="small" />
+                        <span className="animate-pulse">正在思考</span>
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-blue-300 dark:text-blue-800 text-xl text-center mt-40 select-none">
-            开始新的对话吧！
-          </div>
-        )}
-        {/* 在所有消息后添加一个占位符，以确保有足够的滚动空间 */}
-        {messages.length > 0 && (
-          <div style={{ height: "70vh" }} aria-hidden="true" />
-        )}
+            ))
+          : null}
       </div>
     </div>
   )
