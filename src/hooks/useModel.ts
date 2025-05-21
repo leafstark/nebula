@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react"
 
 const MODEL_LIST = [
-  "gpt-4o",
   "gpt-4.1",
-  "claude-3.5-sonnet",
   "claude-3.7-sonnet",
   "claude-3.7-sonnet-thought",
   "gemini-2.5-pro",

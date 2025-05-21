@@ -33,7 +33,7 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      "/api/v1/chat/completions": {
+      "/api": {
         target: "https://wings-tigerai-hub.test.tigerbrokers.net/",
         changeOrigin: true,
         ws: true,
