@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 // 读取环境变量
-dotenv.config()
+dotenv.config({ path: path.resolve(__dirname, '.env') })
 
 const app = express()
 const PORT = process.env.PORT || 80
