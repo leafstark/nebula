@@ -15,5 +15,5 @@ COPY --from=builder /app/package*.json ./
 RUN npm install --omit=dev --prefix ./server && npm cache clean --force
 
 ENV NODE_ENV=production
-EXPOSE 3000
+EXPOSE 80
 CMD ["node", "server/index.js"]
