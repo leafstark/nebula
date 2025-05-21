@@ -32,7 +32,7 @@ app.use(
 
 // API 代理
 app.use(
-  "/api/v1/chat/completions",
+  "/api/",
   createProxyMiddleware({
     target: OPENAI_BASE_URL,
     changeOrigin: true,
