@@ -11,13 +11,11 @@ const __dirname = dirname(__filename)
 
 // 读取环境变量
 dotenv.config()
-console.log("Environment Variables:", process.env.OPENAI_BASE_URL)
+
 const app = express()
-const PORT = process.env.PORT || 3000
-const OPENAI_BASE_URL =
-  process.env.OPENAI_BASE_URL ||
-  "https://wings-copilot.test.tigerbrokers.net/api/v1"
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ""
+const PORT = process.env.PORT || 80
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 
 // 静态资源服务
 const distPath = path.join(__dirname, "../dist")
@@ -52,5 +50,5 @@ app.get("*", (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`)
+  console.log(`Server running`)
 })
