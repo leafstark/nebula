@@ -6,17 +6,14 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Stage 2: Serve with Nginx
-FROM registry.tigerbrokers.net/mirrors/nginx:latest
+# Stage 2: Serve with Node.js
+FROM registry.tigerbrokers.net/mirrors/node:23.11.0-alpine AS server
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/package*.json ./
+RUN npm install --omit=dev --prefix ./server && npm cache clean --force
 
-# 删除默认配置
-RUN rm -rf /usr/share/nginx/html/*
-
-# 拷贝构建好的静态资源
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# 覆盖默认 Nginx 配置
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+ENV NODE_ENV=production
+EXPOSE 3000
+CMD ["node", "server/index.js"]

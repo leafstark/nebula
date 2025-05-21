@@ -67,7 +67,7 @@ export function useChatStream({
     }
     try {
       const res = await fetch(
-        "https://wings-copilot.test.tigerbrokers.net/api/v1/chat/completions",
+        "api/v1/chat/completions",
         {
           method: "POST",
           headers: {

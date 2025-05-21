@@ -65,7 +65,7 @@ export default function SessionList({
       <Button
         type="primary"
         icon={<PlusOutlined />}
-        className="w-full"
+        className="w-full shrink-0"
         onClick={onNewSession}
       >
         新建会话
