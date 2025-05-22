@@ -1,4 +1,4 @@
-# Tiger AI
+# Nebula
 
 本项目基于 Vite + React + TypeScript。
 

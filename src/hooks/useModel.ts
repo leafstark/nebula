@@ -9,13 +9,13 @@ const MODEL_LIST = [
 
 export function useModel(isInitialized: boolean) {
   const [model, setModel] = useState(() => {
-    const saved = localStorage.getItem("tiger-ai-model")
+    const saved = localStorage.getItem("nebula-model")
     return saved && MODEL_LIST.includes(saved) ? saved : MODEL_LIST[0]
   })
 
   useEffect(() => {
     if (!isInitialized) return
-    localStorage.setItem("tiger-ai-model", model)
+    localStorage.setItem("nebula-model", model)
   }, [model, isInitialized])
 
   return { model, setModel, MODEL_LIST }

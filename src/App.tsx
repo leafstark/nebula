@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Select } from "antd"
-import "antd/dist/reset.css"
+// import "antd/dist/reset.css"
 import SessionList from "./components/SessionList"
 import ChatWindow from "./components/ChatWindow"
 import ChatInput from "./components/ChatInput"
@@ -81,7 +81,7 @@ function App() {
       <header className="w-full flex items-center justify-between px-8 py-4 border-b border-blue-200 dark:border-blue-900 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <span className="text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 drop-shadow">
-            TigerAI Hub
+            Nebula
           </span>
         </div>
         <div className="flex items-center gap-4">

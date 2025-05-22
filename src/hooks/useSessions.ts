@@ -4,7 +4,7 @@ import type { Session } from "../components/SessionList"
 // 引入 idb 简化 IndexedDB 操作
 import { openDB } from "idb"
 
-const DB_NAME = "tiger-ai"
+const DB_NAME = "nebula"
 const STORE_NAME = "sessions"
 
 async function getDB() {

@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'cloud.svg'],
       manifest: {
-        name: 'TigerAI Hub',
-        short_name: 'TigerAI',
+        name: 'Nebula',
+        short_name: 'Nebula',
         description: 'Frontend platform with OpenAI API compatibility.',
         theme_color: '#2563eb',
         background_color: '#ffffff',
@@ -34,7 +34,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "https://wings-tigerai-hub.test.tigerbrokers.net/",
+        target: "https://wings-nebula.test.tigerbrokers.net/",
         changeOrigin: true,
         ws: true,
       },
