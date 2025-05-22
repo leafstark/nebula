@@ -15,7 +15,7 @@ export default defineConfig({
         name: 'Nebula',
         short_name: 'Nebula',
         description: 'Frontend platform with OpenAI API compatibility.',
-        theme_color: '#ffffffcc',
+        theme_color: '#e6f4ff',
         background_color: '#ffffff',
         display: 'standalone',
         scope: '/',
