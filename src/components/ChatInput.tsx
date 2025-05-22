@@ -20,16 +20,16 @@ export default function ChatInput({
 
   return (
     <form
-      className={`absolute left-1/2 -translate-x-1/2 z-30 gap-3 bg-white/80 dark:bg-gray-950/80 border border-blue-100 dark:border-blue-900 rounded-xl shadow-xl px-4 sm:px-6 py-4 backdrop-blur-md w-full max-w-2xl ${positionClass}`}
+      className={`absolute left-1/2 -translate-x-1/2 z-30 gap-3 bg-white/80 border border-blue-100 rounded-xl shadow-xl px-4 sm:px-6 py-4 backdrop-blur-md w-full max-w-2xl ${positionClass}`}
       onSubmit={onSend}
     >
       {activeSessionId === null && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-6 text-blue-300 dark:text-blue-800 text-xl text-center select-none whitespace-nowrap">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-6 text-blue-300 text-xl text-center select-none whitespace-nowrap">
           开始新的对话吧！
         </div>
       )}
       <Input.TextArea
-        className="w-full resize-none rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-gray-800 p-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-20 shadow-inner transition"
+        className="w-full resize-none rounded-lg border border-blue-200 bg-blue-50 p-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-20 shadow-inner transition"
         placeholder="输入你的问题..."
         autoSize={{ minRows: 1, maxRows: 6 }}
         value={input}

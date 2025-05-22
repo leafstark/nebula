@@ -61,7 +61,7 @@ export default function SessionList({
   }
 
   return (
-    <aside className="w-65 max-h-screen overflow-y-auto bg-white/90 dark:bg-gray-950/90 border-r border-blue-100 dark:border-blue-900 p-6 flex flex-col shadow-md">
+    <aside className="w-65 max-h-screen overflow-y-auto bg-white/90 border-r border-blue-100 p-6 flex flex-col shadow-md">
       <Button
         type="primary"
         icon={<PlusOutlined />}
@@ -73,7 +73,7 @@ export default function SessionList({
       <Divider />
       <div className="overflow-y-auto w-full shrink-0">
         {sessions.length === 0 ? (
-          <div className="text-blue-300 dark:text-blue-800 text-sm text-center mt-16">
+          <div className="text-blue-300 text-sm text-center mt-16">
             暂无会话
           </div>
         ) : (
@@ -82,7 +82,7 @@ export default function SessionList({
               const menuItems = [
                 {
                   key: "rename",
-                  icon: <EditFilled />,
+                  icon: <EditFilled />, 
                   label: (
                     <span onClick={() => onRenameSession(s.id, s.name)}>
                       重命名
@@ -91,7 +91,7 @@ export default function SessionList({
                 },
                 {
                   key: "delete",
-                  icon: <DeleteOutlined />,
+                  icon: <DeleteOutlined />, 
                   label: (
                     <span onClick={() => showDeleteModal(s.id)}>删除</span>
                   ),
@@ -103,8 +103,8 @@ export default function SessionList({
                     type="text"
                     className={`w-full pl-3 ${
                       s.id === activeSessionId
-                        ? "!bg-blue-100 !text-blue-700 dark:!bg-blue-900 dark:!text-blue-200 shadow"
-                        : "hover:!bg-blue-50 dark:hover:!bg-blue-800 !text-gray-700 dark:!text-gray-200"
+                        ? "!bg-blue-100 !text-blue-700 shadow"
+                        : "hover:!bg-blue-50 !text-gray-700"
                     }`}
                     onClick={() => onSelectSession(s.id)}
                   >
@@ -119,9 +119,7 @@ export default function SessionList({
                       type="text"
                       icon={<MoreOutlined />}
                       className={`right-0.5 absolute text-lg transition ${
-                        s.id === activeSessionId
-                          ? "flex"
-                          : "hidden group-hover:flex"
+                        s.id === activeSessionId ? "flex" : "hidden group-hover:flex"
                       }`}
                       title="更多操作"
                     />

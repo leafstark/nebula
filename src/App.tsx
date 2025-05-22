@@ -76,11 +76,11 @@ function App() {
   // 当前会话
   const current = sessions.find((s) => s.id === activeSessionId)
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-100 via-white to-blue-200 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-100 via-white to-blue-200">
       {/* 顶部导航栏 */}
-      <header className="w-full flex items-center justify-between px-8 py-4 border-b border-blue-200 dark:border-blue-900 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
+      <header className="w-full flex items-center justify-between px-8 py-4 border-b border-blue-200 bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <span className="text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 drop-shadow">
+          <span className="text-3xl font-extrabold tracking-tight text-blue-600 drop-shadow">
             Nebula
           </span>
         </div>

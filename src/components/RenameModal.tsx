@@ -12,7 +12,7 @@ export default function RenameModal({ visible, value, setValue, onOk, onCancel }
   if (!visible) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-8 min-w-[320px] flex flex-col gap-4">
+      <div className="bg-white rounded-xl shadow-xl p-8 min-w-[320px] flex flex-col gap-4">
         <div className="text-lg font-bold mb-2">重命名会话</div>
         <Input
           value={value}

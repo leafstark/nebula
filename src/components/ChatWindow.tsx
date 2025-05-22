@@ -158,20 +158,13 @@ export default function ChatWindow({ messages, activeSessionId }: Props) {
               <div
                 key={idx}
                 ref={idx === lastUserIdx ? lastUserMsgRef : undefined}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group relative`}
               >
                 <div
-                  className={`flex ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
-                  } group relative`}
-                >
-                  <div
-                    className={`px-4 py-2 rounded-2xl shadow-2xl text-base whitespace-pre-line break-words relative transition-colors
-                    backdrop-blur-lg
-                    ${
-                      msg.role === "user"
-                        ? "bg-blue-100/80 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100 rounded-br-md border border-blue-200/60 dark:border-blue-400/30 ring-1 ring-blue-300/20"
-                        : "bg-white/80 dark:bg-gray-800/80 text-blue-900 dark:text-blue-100 rounded-bl-md border border-gray-200/60 dark:border-gray-700/40 ring-1 ring-blue-400/10"
-                    }
+                  className={`px-4 py-2 rounded-2xl shadow-2xl text-base whitespace-pre-line break-words relative transition-colors backdrop-bl-lg
+                    ${msg.role === "user"
+                      ? "bg-blue-100/80 text-blue-900 rounded-br-md border border-blue-200/60 ring-1 ring-blue-300/20"
+                      : "bg-white/80 text-blue-900 rounded-bl-md border border-gray-200/60 ring-1 ring-blue-400/10"}
                   `}
                   style={{
                     boxShadow:
@@ -179,15 +172,14 @@ export default function ChatWindow({ messages, activeSessionId }: Props) {
                     backdropFilter: "blur(16px)",
                   }}
                 >
-                    {msg.role === "assistant" && !msg.content ? (
-                      <div className="flex items-center gap-2">
-                        <Spin size="small" />
-                        <span className="animate-pulse">正在思考</span>
-                      </div>
-                    ) : (
-                      msg.content
-                    )}
-                  </div>
+                  {msg.role === "assistant" && !msg.content ? (
+                    <div className="flex items-center gap-2">
+                      <Spin size="small" />
+                      <span className="animate-pulse">正在思考</span>
+                    </div>
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </div>
             ))
