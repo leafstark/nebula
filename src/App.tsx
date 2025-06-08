@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Select } from "antd"
 // import "antd/dist/reset.css"
 import SessionList from "./components/SessionList"
@@ -8,6 +8,7 @@ import RenameModal from "./components/RenameModal"
 import { useSessions } from "./hooks/useSessions"
 import { useModel } from "./hooks/useModel"
 import { useChatStream } from "./hooks/useChatStream"
+import type { Message } from "./components/ChatWindow"
 
 function App() {
   // 会话管理
@@ -32,6 +33,14 @@ function App() {
   const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [renameSessionId, setRenameSessionId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState("")
+
+  // 新增：用于延迟派发 resend 事件，避免 setSessions 闭包导致多次副作用
+  const [pendingResend, setPendingResend] = useState<{
+    sessionId: number
+    messages: Message[]
+    userMsg: Message
+    model: string
+  } | null>(null)
 
   // 新建会话
   const handleNewSession = () => {
@@ -73,6 +82,122 @@ function App() {
     setRenameModalVisible(false)
   }
 
+  // 删除单条消息
+  // const handleDeleteMessage = (messageId: number) => {
+  //   if (!current) return
+  //   setSessions((prevSessions) =>
+  //     prevSessions.map((s) =>
+  //       s.id === current.id
+  //         ? { ...s, messages: s.messages.filter((m) => m.id !== messageId) }
+  //         : s
+  //     )
+  //   )
+  // }
+
+  // 重发消息（仅支持重发用户消息，自动删除其后的 assistant 回复）
+  const handleResendMessage = (messageId: number) => {
+    if (!current) return
+    const msgIdx = current.messages.findIndex((m) => m.id === messageId)
+    if (msgIdx === -1) return
+    const msg = current.messages[msgIdx]
+    if (msg.role !== "user") return
+    // 删除该用户消息之后的所有消息（含 AI 回复），并直接重发该消息
+    // 这里直接调用 useChatStream 的 handleSend 会导致再次插入一条 user 消息
+    // 应该直接调用 useChatStream 的底层逻辑，避免重复插入
+    // 方案：直接调用 setSessions，插入 assistant 空消息，然后发起请求
+    const targetSessionId = current.id
+    const userMsg = msg
+    // 先移除后续消息并插入 assistant 空消息
+    setSessions((prevSessions) =>
+      prevSessions.map((s) =>
+        s.id === targetSessionId
+          ? {
+              ...s,
+              messages: [
+                ...s.messages.slice(0, msgIdx + 1),
+                { role: "assistant", content: "", id: Date.now() + Math.floor(Math.random() * 10000) },
+              ],
+            }
+          : s
+      )
+    )
+    // 直接发起请求（模拟 handleSend 的流式请求部分）
+    // 这里需要复用 useChatStream 的流式请求逻辑，建议将流式请求部分提取为独立函数
+    // 临时方案：window.dispatchEvent 触发自定义事件，由 useChatStream 监听并处理
+    window.dispatchEvent(new CustomEvent("resend-message", {
+      detail: {
+        sessionId: targetSessionId,
+        messages: [
+          ...current.messages.slice(0, msgIdx + 1),
+        ],
+        userMsg,
+        model,
+      },
+    }))
+  }
+
+  // 编辑单条消息内容
+  const handleEditMessage = (messageId: number, newContent: string) => {
+    if (!current) return
+    setSessions((prevSessions) => {
+      let needResend = false
+      const targetSessionId = current.id
+      let userMsg: Message | null = null
+      let msgIdx = -1
+      const newSessions = prevSessions.map((s) => {
+        if (s.id !== current.id) return s
+        const newMessages = s.messages.map((m, idx) => {
+          if (m.id === messageId) {
+            if (m.content !== newContent) {
+              needResend = true
+              userMsg = { ...m, content: newContent }
+              msgIdx = idx
+              return userMsg
+            }
+          }
+          return m
+        })
+        return { ...s, messages: newMessages }
+      })
+      // 只有内容变更时才重发
+      if (needResend && userMsg && msgIdx !== -1) {
+        // 删除该用户消息之后的所有消息（含 AI 回复），并插入 assistant 空消息
+        const updatedSessions = newSessions.map((s) => {
+          if (s.id !== targetSessionId) return s
+          return {
+            ...s,
+            messages: [
+              ...s.messages.slice(0, msgIdx + 1),
+              { role: "assistant", content: "", id: Date.now() + Math.floor(Math.random() * 10000) },
+            ],
+          }
+        })
+        // 只做数据变更，不派发副作用
+        // 通过 setPendingResend 交由 useEffect 处理副作用
+        setPendingResend({
+          sessionId: targetSessionId,
+          messages: [
+            ...newSessions.find((s) => s.id === targetSessionId)!.messages.slice(0, msgIdx + 1),
+          ],
+          userMsg,
+          model,
+        })
+        return updatedSessions
+      }
+      return newSessions
+    })
+  }
+
+  // 新增：监听 pendingResend，派发 resend-message 事件
+  useEffect(() => {
+    if (pendingResend) {
+      window.dispatchEvent(new CustomEvent("resend-message", {
+        detail: pendingResend,
+      }))
+      setPendingResend(null)
+    }
+  }, [pendingResend])
+
   // 当前会话
   const current = sessions.find((s) => s.id === activeSessionId)
   return (
@@ -111,6 +236,8 @@ function App() {
           <ChatWindow
             messages={current?.messages || []}
             activeSessionId={activeSessionId}
+            onResendMessage={handleResendMessage}
+            onEditMessage={handleEditMessage}
           />
           {/* 输入栏 */}
           <ChatInput

@@ -1,17 +1,32 @@
-import { Spin } from "antd"
-import { useRef, useEffect } from "react"
+import { Button, Spin, Input } from "antd"
+import {
+  RedoOutlined,
+  CopyOutlined,
+  CheckOutlined,
+  EditOutlined,
+} from "@ant-design/icons"
+import { useRef, useEffect, useState } from "react"
 
-interface Message {
+export type Message = {
   role: string
   content: string
+  id?: number // 新增id字段，便于操作
 }
 
 interface Props {
   messages: Message[]
   activeSessionId: number | null
+  onResendMessage?: (messageId: number) => void
+  onEditMessage?: (messageId: number, newContent: string) => void // 修正类型
 }
 
-export default function ChatWindow({ messages, activeSessionId }: Props) {
+export default function ChatWindow({
+  messages,
+  activeSessionId,
+  onResendMessage,
+  onEditMessage,
+}: Props) {
+  console.log("ChatWindow rendered with messages:", messages)
   const containerRef = useRef<HTMLDivElement>(null)
   const lastUserMsgRef = useRef<HTMLDivElement>(null) // 保留，虽然当前滚动逻辑不直接用它定位
   const prevActiveSessionIdRef = useRef<number | null>(null)
@@ -147,24 +162,70 @@ export default function ChatWindow({ messages, activeSessionId }: Props) {
     prevMessagesLengthRef.current = currentMessagesLength
   }, [messages, activeSessionId])
 
+  // 复制按钮的“已复制”状态
+  const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null)
+
+  // 复制逻辑，和 Typography.Text copyable 效果一致
+  const handleCopy = async (msgId: number, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedMsgId(msgId)
+      setTimeout(
+        () => setCopiedMsgId((current) => (current === msgId ? null : current)),
+        1500
+      )
+    } catch {
+      // 可选：失败提示
+    }
+  }
+
+  // 编辑相关状态
+  const [editingMsgId, setEditingMsgId] = useState<number | null>(null)
+  const [editingValue, setEditingValue] = useState("")
+
+  // 触发编辑
+  const handleEdit = (msgId: number, content: string) => {
+    setEditingMsgId(msgId)
+    setEditingValue(content)
+  }
+
+  // 取消编辑
+  const handleEditCancel = () => {
+    setEditingMsgId(null)
+    setEditingValue("")
+  }
+
+  // 确认编辑
+  const handleEditOk = () => {
+    if (editingMsgId !== null && editingValue.trim()) {
+      onEditMessage?.(editingMsgId, editingValue.trim())
+    }
+    setEditingMsgId(null)
+    setEditingValue("")
+  }
+
   return (
     <div
       ref={containerRef}
-      className="flex-1 min-h-0 overflow-y-auto px-12 pt-8 pb-40"
+      className="flex-1 min-h-0 overflow-y-auto px-12 pt-8 pb-44"
     >
       <div className="flex flex-col gap-12 max-w-200 mx-auto">
         {messages.length > 0
           ? messages.map((msg, idx) => (
               <div
-                key={idx}
+                key={msg.id ?? idx}
                 ref={idx === lastUserIdx ? lastUserMsgRef : undefined}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group relative`}
+                className={`flex ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
               >
                 <div
-                  className={`px-4 py-2 rounded-2xl shadow-2xl text-base whitespace-pre-line break-words relative transition-colors backdrop-bl-lg
-                    ${msg.role === "user"
-                      ? "bg-blue-100/80 text-blue-900 rounded-br-md border border-blue-200/60 ring-1 ring-blue-300/20"
-                      : "bg-white/80 text-blue-900 rounded-bl-md border border-gray-200/60 ring-1 ring-blue-400/10"}
+                  className={`group px-4 py-2 rounded-2xl shadow-2xl text-base whitespace-pre-line break-words relative transition-colors backdrop-bl-lg
+                    ${
+                      msg.role === "user"
+                        ? "bg-blue-100/80 text-blue-900 rounded-br-md border border-blue-200/60 ring-1 ring-blue-300/20"
+                        : "bg-white/80 text-blue-900 rounded-bl-md border border-gray-200/60 ring-1 ring-blue-400/10"
+                    }
                   `}
                   style={{
                     boxShadow:
@@ -177,8 +238,73 @@ export default function ChatWindow({ messages, activeSessionId }: Props) {
                       <Spin size="small" />
                       <span className="animate-pulse">正在思考</span>
                     </div>
+                  ) : editingMsgId === msg.id ? (
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        className="w-60"
+                        value={editingValue}
+                        variant="borderless"
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onPressEnter={handleEditOk}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") handleEditCancel()
+                        }}
+                        autoFocus
+                      />
+                      <Button
+                        size="small"
+                        type="primary"
+                        onClick={handleEditOk}
+                        disabled={!editingValue.trim()}
+                      >
+                        保存
+                      </Button>
+                      <Button size="small" onClick={handleEditCancel}>
+                        取消
+                      </Button>
+                    </div>
                   ) : (
                     msg.content
+                  )}
+                  {typeof msg.id === "number" && (
+                    <div className="absolute right-0 mt-3 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      {msg.role === "user" && (
+                        <Button
+                          className="p-0"
+                          type="link"
+                          size="small"
+                          shape="circle"
+                          icon={<EditOutlined />}
+                          title="编辑"
+                          onClick={() => handleEdit(msg.id!, msg.content)}
+                        />
+                      )}
+                      {msg.role === "user" && (
+                        <Button
+                          className="p-0"
+                          type="link"
+                          size="small"
+                          shape="circle"
+                          onClick={() => onResendMessage?.(msg.id!)}
+                          icon={<RedoOutlined />}
+                        />
+                      )}
+                      <Button
+                        className="p-0"
+                        type="link"
+                        size="small"
+                        shape="circle"
+                        onClick={() => handleCopy(msg.id!, msg.content)}
+                        icon={
+                          copiedMsgId === msg.id ? (
+                            <CheckOutlined />
+                          ) : (
+                            <CopyOutlined />
+                          )
+                        }
+                        title={copiedMsgId === msg.id ? "已复制" : "复制"}
+                      />
+                    </div>
                   )}
                 </div>
               </div>

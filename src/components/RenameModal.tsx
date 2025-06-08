@@ -8,7 +8,13 @@ interface Props {
   onCancel: () => void
 }
 
-export default function RenameModal({ visible, value, setValue, onOk, onCancel }: Props) {
+export default function RenameModal({
+  visible,
+  value,
+  setValue,
+  onOk,
+  onCancel,
+}: Props) {
   if (!visible) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -16,7 +22,7 @@ export default function RenameModal({ visible, value, setValue, onOk, onCancel }
         <div className="text-lg font-bold mb-2">重命名会话</div>
         <Input
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onChange={(e) => setValue(e.target.value)}
           onPressEnter={onOk}
           maxLength={30}
           autoFocus
