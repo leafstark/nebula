@@ -130,6 +130,27 @@ export function useChatStream({
     let targetSessionId: number
     let messagesForApi: Array<{ role: string; content: string; id?: number }>
     const genMsgId = () => Date.now() + Math.floor(Math.random() * 10000)
+    const SUMMARY_ROUND = 5 // 每5轮摘要
+
+    // 自动摘要函数
+    async function summarizeMessages(messages: Array<{ role: string; content: string }>): Promise<string> {
+      const summaryPrompt = [
+        { role: "system", content: "请总结以下多轮对话内容，保留关键信息，简明扼要。" },
+        ...messages
+      ]
+      const res = await fetch("api/v1/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model,
+          stream: false,
+          messages: summaryPrompt,
+        }),
+      })
+      if (res.status !== 200) return "[摘要失败]"
+      const data = await res.json()
+      return data.choices?.[0]?.message?.content || "[摘要失败]"
+    }
+
     if (activeSessionId === null) {
       const newId = Date.now()
       const newSessionName = userInput.substring(0, 30) || `新会话`
@@ -137,6 +158,7 @@ export function useChatStream({
         id: newId,
         name: newSessionName,
         messages: [{ role: "user", content: userInput, id: genMsgId() }],
+        summaries: [],
       }
       setSessions((prevSessions) => [
         {
@@ -154,19 +176,61 @@ export function useChatStream({
     } else {
       targetSessionId = activeSessionId
       const currentSession = sessions.find((s) => s.id === activeSessionId)
-      messagesForApi = currentSession
-        ? [
-            ...currentSession.messages,
-            { role: "user", content: userInput, id: genMsgId() },
-          ]
-        : [{ role: "user", content: userInput, id: genMsgId() }]
+      if (!currentSession) return
+      // 1. 计算已摘要到第几轮
+      const summaries = currentSession.summaries || []
+      let summarizedRounds = 0
+      if (summaries.length > 0) {
+        summarizedRounds = summaries[summaries.length - 1].round
+      }
+      // 2. 取出未被摘要的消息（从 summarizedRounds*2 开始，因为一轮2条消息）
+      const allMessages = [
+        ...currentSession.messages,
+        { role: "user", content: userInput, id: genMsgId() },
+      ]
+      // 只统计 user/assistant 消消息
+      const uaMessages = allMessages.filter(m => m.role === "user" || m.role === "assistant")
+      // 以2条为一轮分组
+      const rounds: { role: string; content: string; id?: number }[][] = []
+      for (let i = 0; i < uaMessages.length; i += 2) {
+        rounds.push(uaMessages.slice(i, i + 2))
+      }
+      // 3. 判断未摘要的轮数
+      const unSummarizedRounds = rounds.slice(summarizedRounds)
+      // 4. 如果未摘要轮数 >= SUMMARY_ROUND，则摘要前 SUMMARY_ROUND 轮
+      const newSummaries = [...summaries]
+      let remainRounds = unSummarizedRounds
+      if (unSummarizedRounds.length >= SUMMARY_ROUND) {
+        const toSummarize = unSummarizedRounds.slice(0, SUMMARY_ROUND).flat()
+        const summary = await summarizeMessages(toSummarize.map(({ role, content }) => ({ role, content })))
+        newSummaries.push({ round: summarizedRounds + SUMMARY_ROUND, content: summary })
+        // 剩余未摘要的轮
+        remainRounds = unSummarizedRounds.slice(SUMMARY_ROUND)
+        // 更新Session.summaries
+        setSessions((prevSessions) => prevSessions.map(s =>
+          s.id === targetSessionId ? { ...s, summaries: newSummaries } : s
+        ))
+      }
+      // 5. 组装 messagesForApi: 所有 summaries + remainRounds + 当前user消息（如果未被包含）
+      messagesForApi = [
+        ...newSummaries.map(s => ({ role: "system", content: `历史摘要：${s.content}` })),
+        ...remainRounds.flat(),
+      ]
+      // 如果最后一条不是当前userInput，则补上
+      if (
+        messagesForApi.length === 0 ||
+        messagesForApi[messagesForApi.length - 1].content !== userInput
+      ) {
+        messagesForApi.push({ role: "user", content: userInput, id: genMsgId() })
+      }
+      // 更新messages
       setSessions((prevSessions) =>
         prevSessions.map((s) =>
           s.id === targetSessionId
             ? {
                 ...s,
                 messages: [
-                  ...messagesForApi,
+                  ...allMessages,
                   { role: "assistant", content: "", id: genMsgId() },
                 ],
               }

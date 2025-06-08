@@ -18,6 +18,7 @@ export interface Session {
   id: number
   name: string
   messages: Message[]
+  summaries?: { round: number; content: string }[] // 新增，分段摘要
 }
 
 interface Props {

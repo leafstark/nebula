@@ -239,29 +239,37 @@ export default function ChatWindow({
                       <span className="animate-pulse">正在思考</span>
                     </div>
                   ) : editingMsgId === msg.id ? (
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        className="w-60"
+                    <div className="relative w-full">
+                      <Input.TextArea
+                        autoSize={{ minRows: 4, maxRows: 6 }}
+                        className="w-full pr-28 resize-none"
                         value={editingValue}
                         variant="borderless"
                         onChange={(e) => setEditingValue(e.target.value)}
-                        onPressEnter={handleEditOk}
+                        onPressEnter={(e) => {
+                          if (!e.shiftKey) {
+                            e.preventDefault()
+                            handleEditOk()
+                          }
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "Escape") handleEditCancel()
                         }}
                         autoFocus
                       />
-                      <Button
-                        size="small"
-                        type="primary"
-                        onClick={handleEditOk}
-                        disabled={!editingValue.trim()}
-                      >
-                        保存
-                      </Button>
-                      <Button size="small" onClick={handleEditCancel}>
-                        取消
-                      </Button>
+                      <div className="absolute bottom-0 right-0 flex gap-2 z-10">
+                        <Button
+                          size="small"
+                          type="primary"
+                          onClick={handleEditOk}
+                          disabled={!editingValue.trim()}
+                        >
+                          发送
+                        </Button>
+                        <Button size="small" onClick={handleEditCancel}>
+                          取消
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     msg.content
