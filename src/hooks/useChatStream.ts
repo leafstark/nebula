@@ -113,7 +113,21 @@ async function summarizeMessages(
     ...messages,
     {
       role: "user",
-      content: "请总结以上多轮对话内容，保留关键信息，简明扼要。",
+      content: `请将以上对话内容提炼为结构化摘要，包括：
+
+## 事件要点
+简要描述发生了什么事件。
+
+## 人物情绪
+各个角色情绪状态的变化（如生气、疑惑、信任等）。
+
+## 关系进展
+角色之间的关系是否有所进展或恶化？
+
+## 重要伏笔
+如果有台词暗示、行为转变，请单独记录。
+
+请保持格式清晰，避免冗余。内容请使用第三人称。`,
     },
   ]
   try {
@@ -155,27 +169,35 @@ function getMessagesWithSummary(
   // 计算需要保留的原文起始位置
   const remainStart = Math.max(totalRounds - keepRounds, 0)
   // 需要拼接的摘要（每5轮一条，且只拼接完全覆盖的摘要）
-  const summaryMessages = []
   let covered = 0
-  for (const s of summaries) {
+  const mergedSummaries: string[] = []
+  let lastRound = 0
+  for (let i = 0; i < summaries.length; i++) {
+    const s = summaries[i]
     // 只拼接覆盖不到 remainStart 的摘要
     if (s.round <= remainStart && s.round > covered) {
-      summaryMessages.push({
-        role: "system",
-        content: `以下是之前多轮对话的摘要：${s.content}`,
-      })
+      const startRound = lastRound + 1
+      const endRound = s.round
+      mergedSummaries.push(`【摘要${i + 1}：第${startRound}-${endRound}轮】\n${s.content}`)
       covered = s.round
+      lastRound = s.round
     }
   }
+  // 合并所有摘要为一个 system message
+  const summaryMessages =
+    mergedSummaries.length > 0
+      ? [
+          {
+            role: "system",
+            content: `以下是之前多轮对话的摘要：\n${mergedSummaries.join("\n\n")}`,
+          }
+        ]
+      : []
   // 摘要未覆盖到的原文部分（即 covered~remainStart-1 这些原文）
   const originalRounds = rounds.slice(covered, remainStart).flat()
   // 保留最近5轮原文
   const remainRounds = rounds.slice(remainStart).flat()
-  return [
-    ...summaryMessages,
-    ...originalRounds,
-    ...remainRounds,
-  ]
+  return [...summaryMessages, ...originalRounds, ...remainRounds]
 }
 
 // 辅助函数：在assistant回复完毕后判断是否需要摘要
