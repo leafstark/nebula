@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Button, Divider, Dropdown, Modal } from "antd"
+import { Button, Dropdown, Modal } from "antd"
 import {
   MoreOutlined,
   EditFilled,
