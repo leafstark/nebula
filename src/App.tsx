@@ -25,7 +25,7 @@ function App() {
   // 智能长记忆模式开关
   const [useSummary, setUseSummary] = useState(true)
   // 聊天输入与发送
-  const { input, setInput, handleSend } = useChatStream({
+  const { input, setInput, handleSend, isStreaming, stopStream } = useChatStream({
     sessions,
     setSessions,
     activeSessionId,
@@ -87,27 +87,29 @@ function App() {
     setRenameModalVisible(false)
   }
 
-  // 重发消息（仅支持重发用户消息，自动删除其后的 assistant 回复）
+  // 重发消息（仅支持重发 assistant 消息，自动删除其后的 assistant 回复）
   const handleResendMessage = (messageId: number) => {
     if (!current) return
     const msgIdx = current.messages.findIndex((m) => m.id === messageId)
     if (msgIdx === -1) return
     const msg = current.messages[msgIdx]
-    if (msg.role !== "user") return
-    // 删除该用户消息之后的所有消息（含 AI 回复），并直接重发该消息
-    // 这里直接调用 useChatStream 的 handleSend 会导致再次插入一条 user 消息
-    // 应该直接调用 useChatStream 的底层逻辑，避免重复插入
-    // 方案：直接调用 setSessions，插入 assistant 空消息，然后发起请求
+    if (msg.role !== "assistant") return // 只允许 assistant 消息触发重发
+    // 找到该 assistant 消息前的最近一条 user 消消息
+    let userIdx = msgIdx - 1
+    while (userIdx >= 0 && current.messages[userIdx].role !== "user") {
+      userIdx--
+    }
+    if (userIdx < 0) return // 没有找到对应的 user 消息
+    const userMsg = current.messages[userIdx]
     const targetSessionId = current.id
-    const userMsg = msg
-    // 先移除后续消息并插入 assistant 空消息
+    // 只保留到 user 消息为止，插入 assistant 空消息
     setSessions((prevSessions) =>
       prevSessions.map((s) =>
         s.id === targetSessionId
           ? {
               ...s,
               messages: [
-                ...s.messages.slice(0, msgIdx + 1),
+                ...s.messages.slice(0, userIdx + 1),
                 {
                   role: "assistant",
                   content: "",
@@ -119,13 +121,11 @@ function App() {
       )
     )
     // 直接发起请求（模拟 handleSend 的流式请求部分）
-    // 这里需要复用 useChatStream 的流式请求逻辑，建议将流式请求部分提取为独立函数
-    // 临时方案：window.dispatchEvent 触发自定义事件，由 useChatStream 监听并处理
     window.dispatchEvent(
       new CustomEvent("resend-message", {
         detail: {
           sessionId: targetSessionId,
-          messages: [...current.messages.slice(0, msgIdx + 1)],
+          messages: [...current.messages.slice(0, userIdx + 1)],
           userMsg,
           model,
         },
@@ -284,6 +284,8 @@ function App() {
               setInput={setInput}
               onSend={handleSend}
               activeSessionId={activeSessionId}
+              isStreaming={isStreaming}
+              onStopStream={stopStream}
             />
           </section>
         </Layout.Content>

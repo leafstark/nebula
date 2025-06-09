@@ -1,19 +1,26 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { Session } from "../components/SessionList"
 
-// 抽取流式请求和消息处理的核心逻辑
+// 抽取流式请求和消息处理的核心逻辑，支持 abort
 async function streamChatCompletion({
   targetSessionId,
   messagesForApi,
   model,
   setSessions,
+  onStreamStart,
+  onStreamEnd,
+  abortSignal,
 }: {
   targetSessionId: number
   messagesForApi: Array<{ role: string; content: string; id?: number }>
   model: string
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
+  onStreamStart?: () => void
+  onStreamEnd?: () => void
+  abortSignal?: AbortSignal
 }) {
   try {
+    onStreamStart?.()
     const res = await fetch("api/v1/chat/completions", {
       method: "POST",
       body: JSON.stringify({
@@ -21,6 +28,7 @@ async function streamChatCompletion({
         stream: true,
         messages: messagesForApi,
       }),
+      signal: abortSignal,
     })
     if (res.status !== 200) {
       const errorText = await res.text()
@@ -40,6 +48,7 @@ async function streamChatCompletion({
           return s
         })
       )
+      onStreamEnd?.()
       return
     }
     if (!res.body) throw new Error("No stream")
@@ -86,20 +95,27 @@ async function streamChatCompletion({
         )
       }
     }
+    onStreamEnd?.()
   } catch (error) {
-    console.error("API 调用失败:", error)
-    setSessions((prevSessions) =>
-      prevSessions.map((s) => {
-        if (s.id !== targetSessionId) return s
-        const msgs = [...s.messages]
-        const lastMsg = msgs[msgs.length - 1]
-        if (lastMsg?.role === "assistant") {
-          msgs[msgs.length - 1] = { ...lastMsg, content: "[网络错误]" }
-          return { ...s, messages: msgs }
-        }
-        return s
-      })
-    )
+    if (typeof error === "object" && error && "name" in error && (error as { name?: string }).name === "AbortError") {
+      // 终止时不修改内容，保留已生成部分
+      // 不做 setSessions 内容覆盖
+    } else {
+      console.error("API 调用失败:", error)
+      setSessions((prevSessions) =>
+        prevSessions.map((s) => {
+          if (s.id !== targetSessionId) return s
+          const msgs = [...s.messages]
+          const lastMsg = msgs[msgs.length - 1]
+          if (lastMsg?.role === "assistant") {
+            msgs[msgs.length - 1] = { ...lastMsg, content: "[网络错误]" }
+            return { ...s, messages: msgs }
+          }
+          return s
+        })
+      )
+    }
+    onStreamEnd?.()
   }
 }
 
@@ -272,10 +288,13 @@ export function useChatStream({
   useSummary?: boolean
 }) {
   const [input, setInput] = useState("")
+  const [isStreaming, setIsStreaming] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // 发送消息（流式回复）
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isStreaming) return
     const userInput = input.trim()
     if (!userInput) return
     setInput("")
@@ -345,20 +364,34 @@ export function useChatStream({
       )
     }
     // 先流式请求，再摘要
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
     await streamChatCompletion({
       targetSessionId,
       messagesForApi,
       model,
       setSessions,
+      onStreamStart: () => setIsStreaming(true),
+      onStreamEnd: () => setIsStreaming(false),
+      abortSignal: abortController.signal,
     })
+    abortControllerRef.current = null
     if (useSummary) {
       await triggerSummarization(targetSessionId, setSessions, model)
+    }
+  }
+
+  const stopStream = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
     }
   }
 
   useEffect(() => {
     // 监听重发消息事件
     const handler = async (e: Event) => {
+      if (isStreaming) return
       const detail = (e as CustomEvent).detail
       if (!detail) return
       const { sessionId, messages, model: eventModel } = detail
@@ -380,19 +413,25 @@ export function useChatStream({
       } else {
         messagesForApi = messages
       }
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
       await streamChatCompletion({
         targetSessionId: sessionId,
         messagesForApi,
         model: eventModel,
         setSessions,
+        onStreamStart: () => setIsStreaming(true),
+        onStreamEnd: () => setIsStreaming(false),
+        abortSignal: abortController.signal,
       })
+      abortControllerRef.current = null
       if (useSummary) {
         await triggerSummarization(sessionId, setSessions, model)
       }
     }
     window.addEventListener("resend-message", handler)
     return () => window.removeEventListener("resend-message", handler)
-  }, [setSessions, model, sessions, useSummary])
+  }, [setSessions, model, sessions, useSummary, isStreaming])
 
-  return { input, setInput, handleSend }
+  return { input, setInput, handleSend, isStreaming, stopStream }
 }

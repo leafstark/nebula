@@ -109,7 +109,7 @@ export default function SessionList({
                     }`}
                     onClick={() => onSelectSession(s.id)}
                   >
-                    <span className="max-w-full pr-4 truncate text-left w-full">
+                    <span className="max-w-full pr-4 truncate text-left w-full" title={s.name}>
                       {s.name}
                     </span>
                   </Button>

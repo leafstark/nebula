@@ -205,10 +205,9 @@ export default function ChatWindow({
 
   return (
     <div className="flex flex-col h-full">
-      {/* 移除顶部智能长记忆 Switch 区域 */}
       <div
         ref={containerRef}
-        className="flex-1 min-h-0 overflow-y-auto pt-8 pb-44"
+        className="flex-1 min-h-0 overflow-y-auto pt-8 pb-50"
       >
         <div className="flex flex-col gap-12 max-w-200 px-4 mx-auto">
           {messages.length > 0
@@ -271,25 +270,33 @@ export default function ChatWindow({
                       msg.content
                     )}
                     {typeof msg.id === "number" && msg.role === "assistant" && (
-                      <div className="absolute left-0 bottom-[-12] mb-2 ml-2 flex z-10">
+                      <div className="absolute left-0.5 bottom-[-40px] mb-2 ml-2 flex z-10">
                         <Button
                           className="p-0"
                           type="text"
-                          shape="circle"
+                          onClick={() => onResendMessage?.(msg.id!)}
+                          icon={<RedoOutlined />}
+                        />
+                        <Button
+                          className="p-0"
+                          type="text"
                           onClick={() => handleCopy(msg.id!, msg.content)}
                           icon={
-                            copiedMsgId === msg.id ? <CheckOutlined /> : <CopyOutlined />
+                            copiedMsgId === msg.id ? (
+                              <CheckOutlined />
+                            ) : (
+                              <CopyOutlined />
+                            )
                           }
                           title={copiedMsgId === msg.id ? "已复制" : "复制"}
                         />
                       </div>
                     )}
                     {typeof msg.id === "number" && msg.role === "user" && (
-                      <div className="absolute right-0 mt-3 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <div className="absolute right-0 bottom-[-40px] flex justify-end opacity-0 group-hover:opacity-100 transition-opacity z-10">
                         <Button
                           className="p-0"
                           type="text"
-                          shape="circle"
                           icon={<EditOutlined />}
                           title="编辑"
                           onClick={() => handleEdit(msg.id!, msg.content)}
@@ -297,17 +304,13 @@ export default function ChatWindow({
                         <Button
                           className="p-0"
                           type="text"
-                          shape="circle"
-                          onClick={() => onResendMessage?.(msg.id!)}
-                          icon={<RedoOutlined />}
-                        />
-                        <Button
-                          className="p-0"
-                          type="text"
-                          shape="circle"
                           onClick={() => handleCopy(msg.id!, msg.content)}
                           icon={
-                            copiedMsgId === msg.id ? <CheckOutlined /> : <CopyOutlined />
+                            copiedMsgId === msg.id ? (
+                              <CheckOutlined />
+                            ) : (
+                              <CopyOutlined />
+                            )
                           }
                           title={copiedMsgId === msg.id ? "已复制" : "复制"}
                         />
