@@ -1,10 +1,10 @@
 import { useState } from "react"
 import { Button, Divider, Dropdown, Modal } from "antd"
 import {
-  PlusOutlined,
   MoreOutlined,
   EditFilled,
   DeleteOutlined,
+  FormOutlined,
 } from "@ant-design/icons"
 
 interface Message {
@@ -62,19 +62,19 @@ export default function SessionList({
   }
 
   return (
-    <aside className="w-65 max-h-screen overflow-y-auto bg-white/90 border-r border-blue-100 p-6 flex flex-col shadow-md">
+    <div className="flex-1 max-h-screen overflow-y-auto border-r border-neutral-50 p-6 flex flex-col">
       <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        className="w-full shrink-0"
+        type="text"
+        icon={<FormOutlined />}
         onClick={onNewSession}
+        className="mb-6 pl-3"
       >
-        新建会话
+        <span className="text-left w-full">新聊天</span>
       </Button>
-      <Divider />
+      <span className="text-neutral-400 pl-3 text-sm mb-2">聊天</span>
       <div className="overflow-y-auto w-full shrink-0">
         {sessions.length === 0 ? (
-          <div className="text-blue-300 text-sm text-center mt-16">
+          <div className="text-neutral-300 text-sm text-center mt-16">
             暂无会话
           </div>
         ) : (
@@ -83,7 +83,7 @@ export default function SessionList({
               const menuItems = [
                 {
                   key: "rename",
-                  icon: <EditFilled />, 
+                  icon: <EditFilled />,
                   label: (
                     <span onClick={() => onRenameSession(s.id, s.name)}>
                       重命名
@@ -92,7 +92,7 @@ export default function SessionList({
                 },
                 {
                   key: "delete",
-                  icon: <DeleteOutlined />, 
+                  icon: <DeleteOutlined />,
                   label: (
                     <span onClick={() => showDeleteModal(s.id)}>删除</span>
                   ),
@@ -104,12 +104,14 @@ export default function SessionList({
                     type="text"
                     className={`w-full pl-3 ${
                       s.id === activeSessionId
-                        ? "!bg-blue-100 !text-blue-700 shadow"
-                        : "hover:!bg-blue-50 !text-gray-700"
+                        ? "!bg-neutral-200 shadow"
+                        : "hover:!bg-neutral-200 !text-gray-700"
                     }`}
                     onClick={() => onSelectSession(s.id)}
                   >
-                    <span className="max-w-full pr-4 truncate text-left w-full">{s.name}</span>
+                    <span className="max-w-full pr-4 truncate text-left w-full">
+                      {s.name}
+                    </span>
                   </Button>
                   <Dropdown
                     trigger={["click"]}
@@ -120,7 +122,9 @@ export default function SessionList({
                       type="text"
                       icon={<MoreOutlined />}
                       className={`right-0.5 absolute text-lg transition ${
-                        s.id === activeSessionId ? "flex" : "hidden group-hover:flex"
+                        s.id === activeSessionId
+                          ? "flex"
+                          : "hidden group-hover:flex"
                       }`}
                       title="更多操作"
                     />
@@ -142,6 +146,6 @@ export default function SessionList({
       >
         <p className="my-5"> 删除后，该对话将不可恢复。确认删除吗？</p>
       </Modal>
-    </aside>
+    </div>
   )
 }

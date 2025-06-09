@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Select } from "antd"
+import { Select, Switch, Layout, Button } from "antd"
 // import "antd/dist/reset.css"
 import SessionList from "./components/SessionList"
 import ChatWindow from "./components/ChatWindow"
@@ -9,6 +9,7 @@ import { useSessions } from "./hooks/useSessions"
 import { useModel } from "./hooks/useModel"
 import { useChatStream } from "./hooks/useChatStream"
 import type { Message } from "./components/ChatWindow"
+import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons"
 
 function App() {
   // 会话管理
@@ -36,6 +37,7 @@ function App() {
   const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [renameSessionId, setRenameSessionId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState("")
+  const [collapsed, setCollapsed] = useState(false)
 
   // 新增：用于延迟派发 resend 事件，避免 setSessions 闭包导致多次副作用
   const [pendingResend, setPendingResend] = useState<{
@@ -85,18 +87,6 @@ function App() {
     setRenameModalVisible(false)
   }
 
-  // 删除单条消息
-  // const handleDeleteMessage = (messageId: number) => {
-  //   if (!current) return
-  //   setSessions((prevSessions) =>
-  //     prevSessions.map((s) =>
-  //       s.id === current.id
-  //         ? { ...s, messages: s.messages.filter((m) => m.id !== messageId) }
-  //         : s
-  //     )
-  //   )
-  // }
-
   // 重发消息（仅支持重发用户消息，自动删除其后的 assistant 回复）
   const handleResendMessage = (messageId: number) => {
     if (!current) return
@@ -118,7 +108,11 @@ function App() {
               ...s,
               messages: [
                 ...s.messages.slice(0, msgIdx + 1),
-                { role: "assistant", content: "", id: Date.now() + Math.floor(Math.random() * 10000) },
+                {
+                  role: "assistant",
+                  content: "",
+                  id: Date.now() + Math.floor(Math.random() * 10000),
+                },
               ],
             }
           : s
@@ -127,16 +121,16 @@ function App() {
     // 直接发起请求（模拟 handleSend 的流式请求部分）
     // 这里需要复用 useChatStream 的流式请求逻辑，建议将流式请求部分提取为独立函数
     // 临时方案：window.dispatchEvent 触发自定义事件，由 useChatStream 监听并处理
-    window.dispatchEvent(new CustomEvent("resend-message", {
-      detail: {
-        sessionId: targetSessionId,
-        messages: [
-          ...current.messages.slice(0, msgIdx + 1),
-        ],
-        userMsg,
-        model,
-      },
-    }))
+    window.dispatchEvent(
+      new CustomEvent("resend-message", {
+        detail: {
+          sessionId: targetSessionId,
+          messages: [...current.messages.slice(0, msgIdx + 1)],
+          userMsg,
+          model,
+        },
+      })
+    )
   }
 
   // 编辑单条消息内容
@@ -171,7 +165,11 @@ function App() {
             ...s,
             messages: [
               ...s.messages.slice(0, msgIdx + 1),
-              { role: "assistant", content: "", id: Date.now() + Math.floor(Math.random() * 10000) },
+              {
+                role: "assistant",
+                content: "",
+                id: Date.now() + Math.floor(Math.random() * 10000),
+              },
             ],
           }
         })
@@ -180,7 +178,9 @@ function App() {
         setPendingResend({
           sessionId: targetSessionId,
           messages: [
-            ...newSessions.find((s) => s.id === targetSessionId)!.messages.slice(0, msgIdx + 1),
+            ...newSessions
+              .find((s) => s.id === targetSessionId)!
+              .messages.slice(0, msgIdx + 1),
           ],
           userMsg,
           model,
@@ -194,9 +194,11 @@ function App() {
   // 新增：监听 pendingResend，派发 resend-message 事件
   useEffect(() => {
     if (pendingResend) {
-      window.dispatchEvent(new CustomEvent("resend-message", {
-        detail: pendingResend,
-      }))
+      window.dispatchEvent(
+        new CustomEvent("resend-message", {
+          detail: pendingResend,
+        })
+      )
       setPendingResend(null)
     }
   }, [pendingResend])
@@ -204,28 +206,39 @@ function App() {
   // 当前会话
   const current = sessions.find((s) => s.id === activeSessionId)
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-100 via-white to-blue-200">
-      {/* 顶部导航栏 */}
-      <header className="w-full flex items-center justify-between px-8 py-4 border-b border-blue-200 bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl font-extrabold tracking-tight text-blue-600 drop-shadow">
-            Nebula
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* 模型选择器 */}
-          <Select
-            value={model}
-            onChange={setModel}
-            style={{ minWidth: 160 }}
-            popupMatchSelectWidth={false}
-            options={MODEL_LIST.map((m) => ({ label: m, value: m }))}
+    <Layout className="h-screen bg-gradient-to-br from-neutral-100 via-white to-neutral-100">
+      {/* 侧边栏收起时，左上角触发按钮 */}
+      {collapsed && (
+        <Button
+          size="large"
+          type="text"
+          icon={<MenuUnfoldOutlined />}
+          onClick={() => setCollapsed(false)}
+          className="fixed top-3 left-1 z-30 backdrop-blur-md"
+        />
+      )}
+      {/* 侧边栏：会话列表 */}
+      <Layout.Sider
+        width={250}
+        trigger={null}
+        collapsed={collapsed}
+        collapsible
+        collapsedWidth={0}
+        className="bg-neutral-50 h-full flex flex-col relative"
+      >
+        {/* 展开时，右上角触发按钮 */}
+        {!collapsed && (
+          <Button
+            type="text"
+            size="large"
+            icon={<MenuFoldOutlined />}
+            onClick={() => setCollapsed(true)}
+            className="absolute top-3 right-1 z-20 backdrop-blur-md"
           />
-        </div>
-      </header>
-      {/* 主体区域 */}
-      <main className="flex-1 flex flex-row overflow-hidden">
-        {/* 侧边栏：会话列表 */}
+        )}
+        <p className="pt-3 font-sans text-3xl font-bold text-center tracking-tight text-neutral-700">
+          Nebula
+        </p>
         <SessionList
           sessions={sessions}
           activeSessionId={activeSessionId}
@@ -234,34 +247,56 @@ function App() {
           onDeleteSession={handleDeleteSession}
           onRenameSession={handleRenameSession}
         />
-        {/* 聊天主窗口 */}
-        <section className="flex-1 flex flex-col justify-end bg-transparent relative min-h-0 h-[calc(100vh-70px)]">
-          <ChatWindow
-            messages={current?.messages || []}
-            activeSessionId={activeSessionId}
-            onResendMessage={handleResendMessage}
-            onEditMessage={handleEditMessage}
-            useSummary={useSummary}
-            onToggleSummary={setUseSummary}
+      </Layout.Sider>
+      {/* 右侧主内容区 */}
+      <Layout className="flex-1 flex flex-col min-w-0">
+        {/* 顶部导航栏，仅在主内容区顶部 */}
+        <Layout.Header className="w-full flex items-center justify-between px-12 py-4 bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
+          <div className="flex items-center gap-4">
+            <Select
+              value={model}
+              onChange={setModel}
+              size="large"
+              variant="borderless"
+              options={MODEL_LIST.map((m) => ({ label: m, value: m }))}
+            />
+          </div>
+          <Switch
+            checked={useSummary}
+            onChange={setUseSummary}
+            checkedChildren="智能长记忆"
+            unCheckedChildren="关闭"
           />
-          {/* 输入栏 */}
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onSend={handleSend}
-            activeSessionId={activeSessionId}
-          />
-        </section>
-      </main>
-      {/* 会话重命名弹窗 */}
-      <RenameModal
-        visible={renameModalVisible}
-        value={renameValue}
-        setValue={setRenameValue}
-        onOk={handleRenameOk}
-        onCancel={handleRenameCancel}
-      />
-    </div>
+        </Layout.Header>
+        {/* 主体区域 */}
+        <Layout.Content className="flex-1 flex flex-col overflow-hidden">
+          {/* 聊天主窗口 */}
+          <section className="flex-1 flex flex-col justify-end bg-white relative min-h-0 h-full">
+            <ChatWindow
+              messages={current?.messages || []}
+              activeSessionId={activeSessionId}
+              onResendMessage={handleResendMessage}
+              onEditMessage={handleEditMessage}
+            />
+            {/* 输入栏 */}
+            <ChatInput
+              input={input}
+              setInput={setInput}
+              onSend={handleSend}
+              activeSessionId={activeSessionId}
+            />
+          </section>
+        </Layout.Content>
+        {/* 会话重命名弹窗 */}
+        <RenameModal
+          visible={renameModalVisible}
+          value={renameValue}
+          setValue={setRenameValue}
+          onOk={handleRenameOk}
+          onCancel={handleRenameCancel}
+        />
+      </Layout>
+    </Layout>
   )
 }
 
