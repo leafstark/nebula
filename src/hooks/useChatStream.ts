@@ -14,18 +14,15 @@ async function streamChatCompletion({
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
 }) {
   try {
-    const res = await fetch(
-      "api/v1/chat/completions",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          model,
-          stream: true,
-          messages: messagesForApi,
-        }),
-      }
-    )
-    if(res.status !== 200) {
+    const res = await fetch("api/v1/chat/completions", {
+      method: "POST",
+      body: JSON.stringify({
+        model,
+        stream: true,
+        messages: messagesForApi,
+      }),
+    })
+    if (res.status !== 200) {
       const errorText = await res.text()
       console.error("API 错误:", errorText)
       setSessions((prevSessions) =>
@@ -106,18 +103,151 @@ async function streamChatCompletion({
   }
 }
 
+// 自动摘要函数，失败时重试最多3次
+async function summarizeMessages(
+  messages: Array<{ role: string; content: string }>,
+  model: string,
+  retry = 0
+): Promise<string> {
+  const summaryPrompt = [
+    ...messages,
+    {
+      role: "user",
+      content: "请总结以上多轮对话内容，保留关键信息，简明扼要。",
+    },
+  ]
+  try {
+    const res = await fetch("api/v1/chat/completions", {
+      method: "POST",
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: summaryPrompt,
+      }),
+    })
+    if (res.status !== 200) throw new Error("摘要请求失败")
+    const data = await res.json()
+    return data.choices?.[0]?.message?.content || "[摘要失败]"
+  } catch {
+    if (retry < 2) {
+      // 最多重试3次
+      return summarizeMessages(messages, model, retry + 1)
+    }
+    return "[摘要失败]"
+  }
+}
+
+// 拼接摘要和未被摘要覆盖的对话轮次，始终保证最近5轮原文，其余用摘要
+function getMessagesWithSummary(
+  summaries: Array<{ round: number; content: string }>,
+  messages: Array<{ role: string; content: string; id?: number }>
+) {
+  // 拆分为每5轮一组
+  const uaMessages = messages.filter(
+    (m) => m.role === "user" || m.role === "assistant"
+  )
+  const rounds = []
+  for (let i = 0; i < uaMessages.length; i += 2) {
+    rounds.push(uaMessages.slice(i, i + 2))
+  }
+  const keepRounds = 5
+  const totalRounds = rounds.length
+  // 计算需要保留的原文起始位置
+  const remainStart = Math.max(totalRounds - keepRounds, 0)
+  // 需要拼接的摘要（每5轮一条，且只拼接完全覆盖的摘要）
+  const summaryMessages = []
+  let covered = 0
+  for (const s of summaries) {
+    // 只拼接覆盖不到 remainStart 的摘要
+    if (s.round <= remainStart && s.round > covered) {
+      summaryMessages.push({
+        role: "system",
+        content: `以下是之前多轮对话的摘要：${s.content}`,
+      })
+      covered = s.round
+    }
+  }
+  // 摘要未覆盖到的原文部分（即 covered~remainStart-1 这些原文）
+  const originalRounds = rounds.slice(covered, remainStart).flat()
+  // 保留最近5轮原文
+  const remainRounds = rounds.slice(remainStart).flat()
+  return [
+    ...summaryMessages,
+    ...originalRounds,
+    ...remainRounds,
+  ]
+}
+
+// 辅助函数：在assistant回复完毕后判断是否需要摘要
+const triggerSummarization = async (
+  sessionId: number,
+  setSessions: React.Dispatch<React.SetStateAction<Session[]>>,
+  model: string
+) => {
+  let latestSessions: Session[] = []
+  setSessions((prev) => {
+    latestSessions = prev as Session[]
+    return prev
+  })
+  await new Promise((r) => setTimeout(r, 0))
+  const session = latestSessions.find((s) => s.id === sessionId)
+  if (!session) return
+  const summaries = session.summaries || []
+  const uaMessages = session.messages.filter(
+    (m) => m.role === "user" || m.role === "assistant"
+  )
+  const rounds: { role: string; content: string; id?: number }[][] = []
+  for (let i = 0; i < uaMessages.length; i += 2) {
+    rounds.push(uaMessages.slice(i, i + 2))
+  }
+  const SUMMARY_ROUND = 5
+  let summarizedRounds = 0
+  if (summaries.length > 0) {
+    summarizedRounds = summaries[summaries.length - 1].round
+  }
+  // 只要有新的 SUMMARY_ROUND 组就提前生成摘要
+  while (rounds.length >= summarizedRounds + SUMMARY_ROUND) {
+    const toSummarize = rounds
+      .slice(summarizedRounds, summarizedRounds + SUMMARY_ROUND)
+      .flat()
+    const summary = await summarizeMessages(
+      toSummarize.map(({ role, content }) => ({ role, content })),
+      model
+    )
+    if (summary !== "[摘要失败]") {
+      const newSummaries = [
+        ...summaries,
+        { round: summarizedRounds + SUMMARY_ROUND, content: summary },
+      ]
+      setSessions((prevSessions) =>
+        (prevSessions as Session[]).map((s) =>
+          s.id === sessionId ? { ...s, summaries: newSummaries } : s
+        )
+      )
+      // 更新 summaries 变量，防止多摘要
+      summaries.push({
+        round: summarizedRounds + SUMMARY_ROUND,
+        content: summary,
+      })
+    }
+    summarizedRounds += SUMMARY_ROUND
+  }
+}
+
 export function useChatStream({
   sessions,
   setSessions,
   activeSessionId,
   setActiveSessionId,
   model,
+  useSummary = true,
 }: {
   sessions: Session[]
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
   activeSessionId: number | null
   setActiveSessionId: (id: number | null) => void
   model: string
+  useSummary?: boolean
 }) {
   const [input, setInput] = useState("")
 
@@ -130,26 +260,6 @@ export function useChatStream({
     let targetSessionId: number
     let messagesForApi: Array<{ role: string; content: string; id?: number }>
     const genMsgId = () => Date.now() + Math.floor(Math.random() * 10000)
-    const SUMMARY_ROUND = 5 // 每5轮摘要
-
-    // 自动摘要函数
-    async function summarizeMessages(messages: Array<{ role: string; content: string }>): Promise<string> {
-      const summaryPrompt = [
-        { role: "system", content: "请总结以下多轮对话内容，保留关键信息，简明扼要。" },
-        ...messages
-      ]
-      const res = await fetch("api/v1/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model,
-          stream: false,
-          messages: summaryPrompt,
-        }),
-      })
-      if (res.status !== 200) return "[摘要失败]"
-      const data = await res.json()
-      return data.choices?.[0]?.message?.content || "[摘要失败]"
-    }
 
     if (activeSessionId === null) {
       const newId = Date.now()
@@ -177,53 +287,27 @@ export function useChatStream({
       targetSessionId = activeSessionId
       const currentSession = sessions.find((s) => s.id === activeSessionId)
       if (!currentSession) return
-      // 1. 计算已摘要到第几轮
       const summaries = currentSession.summaries || []
-      let summarizedRounds = 0
-      if (summaries.length > 0) {
-        summarizedRounds = summaries[summaries.length - 1].round
-      }
-      // 2. 取出未被摘要的消息（从 summarizedRounds*2 开始，因为一轮2条消息）
       const allMessages = [
         ...currentSession.messages,
         { role: "user", content: userInput, id: genMsgId() },
       ]
-      // 只统计 user/assistant 消消息
-      const uaMessages = allMessages.filter(m => m.role === "user" || m.role === "assistant")
-      // 以2条为一轮分组
-      const rounds: { role: string; content: string; id?: number }[][] = []
-      for (let i = 0; i < uaMessages.length; i += 2) {
-        rounds.push(uaMessages.slice(i, i + 2))
+      if (useSummary) {
+        messagesForApi = getMessagesWithSummary(summaries, allMessages)
+        // 确保最后一条消息是用户输入
+        if (
+          messagesForApi.length === 0 ||
+          messagesForApi[messagesForApi.length - 1].content !== userInput
+        ) {
+          messagesForApi.push({
+            role: "user",
+            content: userInput,
+            id: genMsgId(),
+          })
+        }
+      } else {
+        messagesForApi = allMessages
       }
-      // 3. 判断未摘要的轮数
-      const unSummarizedRounds = rounds.slice(summarizedRounds)
-      // 4. 如果未摘要轮数 >= SUMMARY_ROUND，则摘要前 SUMMARY_ROUND 轮
-      const newSummaries = [...summaries]
-      let remainRounds = unSummarizedRounds
-      if (unSummarizedRounds.length >= SUMMARY_ROUND) {
-        const toSummarize = unSummarizedRounds.slice(0, SUMMARY_ROUND).flat()
-        const summary = await summarizeMessages(toSummarize.map(({ role, content }) => ({ role, content })))
-        newSummaries.push({ round: summarizedRounds + SUMMARY_ROUND, content: summary })
-        // 剩余未摘要的轮
-        remainRounds = unSummarizedRounds.slice(SUMMARY_ROUND)
-        // 更新Session.summaries
-        setSessions((prevSessions) => prevSessions.map(s =>
-          s.id === targetSessionId ? { ...s, summaries: newSummaries } : s
-        ))
-      }
-      // 5. 组装 messagesForApi: 所有 summaries + remainRounds + 当前user消息（如果未被包含）
-      messagesForApi = [
-        ...newSummaries.map(s => ({ role: "system", content: `历史摘要：${s.content}` })),
-        ...remainRounds.flat(),
-      ]
-      // 如果最后一条不是当前userInput，则补上
-      if (
-        messagesForApi.length === 0 ||
-        messagesForApi[messagesForApi.length - 1].content !== userInput
-      ) {
-        messagesForApi.push({ role: "user", content: userInput, id: genMsgId() })
-      }
-      // 更新messages
       setSessions((prevSessions) =>
         prevSessions.map((s) =>
           s.id === targetSessionId
@@ -238,32 +322,55 @@ export function useChatStream({
         )
       )
     }
-    // 调用抽取的流式处理逻辑
-    streamChatCompletion({
+    // 先流式请求，再摘要
+    await streamChatCompletion({
       targetSessionId,
       messagesForApi,
       model,
       setSessions,
     })
+    if (useSummary) {
+      await triggerSummarization(targetSessionId, setSessions, model)
+    }
   }
 
   useEffect(() => {
     // 监听重发消息事件
-    const handler = (e: Event) => {
+    const handler = async (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (!detail) return
       const { sessionId, messages, model: eventModel } = detail
-      // 直接复用流式请求逻辑
-      streamChatCompletion({
+      // 查找当前 session 的 summaries
+      const currentSession = sessions.find((s) => s.id === sessionId)
+      let messagesForApi: Array<{
+        role: string
+        content: string
+        id?: number
+      }> = []
+      if (currentSession) {
+        const summaries = currentSession.summaries || []
+        messagesForApi = useSummary
+          ? getMessagesWithSummary(
+              summaries,
+              messages as Array<{ role: string; content: string; id?: number }>
+            )
+          : (messages as Array<{ role: string; content: string; id?: number }>)
+      } else {
+        messagesForApi = messages
+      }
+      await streamChatCompletion({
         targetSessionId: sessionId,
-        messagesForApi: messages,
+        messagesForApi,
         model: eventModel,
         setSessions,
       })
+      if (useSummary) {
+        await triggerSummarization(sessionId, setSessions, model)
+      }
     }
     window.addEventListener("resend-message", handler)
     return () => window.removeEventListener("resend-message", handler)
-  }, [setSessions])
+  }, [setSessions, model, sessions, useSummary])
 
   return { input, setInput, handleSend }
 }

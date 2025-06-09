@@ -1,4 +1,4 @@
-import { Button, Spin, Input } from "antd"
+import { Button, Spin, Input, Switch } from "antd"
 import {
   RedoOutlined,
   CopyOutlined,
@@ -18,6 +18,8 @@ interface Props {
   activeSessionId: number | null
   onResendMessage?: (messageId: number) => void
   onEditMessage?: (messageId: number, newContent: string) => void // 修正类型
+  useSummary?: boolean
+  onToggleSummary?: (enabled: boolean) => void
 }
 
 export default function ChatWindow({
@@ -25,8 +27,9 @@ export default function ChatWindow({
   activeSessionId,
   onResendMessage,
   onEditMessage,
+  useSummary = true,
+  onToggleSummary,
 }: Props) {
-  console.log("ChatWindow rendered with messages:", messages)
   const containerRef = useRef<HTMLDivElement>(null)
   const lastUserMsgRef = useRef<HTMLDivElement>(null) // 保留，虽然当前滚动逻辑不直接用它定位
   const prevActiveSessionIdRef = useRef<number | null>(null)
@@ -205,119 +208,132 @@ export default function ChatWindow({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="flex-1 min-h-0 overflow-y-auto px-12 pt-8 pb-44"
-    >
-      <div className="flex flex-col gap-12 max-w-200 mx-auto">
-        {messages.length > 0
-          ? messages.map((msg, idx) => (
-              <div
-                key={msg.id ?? idx}
-                ref={idx === lastUserIdx ? lastUserMsgRef : undefined}
-                className={`flex ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-end gap-4 px-12 pt-4 pb-2">
+        <Switch
+          checked={useSummary}
+          onChange={onToggleSummary}
+          checkedChildren="智能长记忆"
+          unCheckedChildren="全量记忆"
+        />
+        <span className="text-xs text-gray-500 select-none">
+          智能长记忆：在节省Token的同时记忆全部上下文
+        </span>
+      </div>
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 overflow-y-auto px-12 pt-8 pb-44"
+      >
+        <div className="flex flex-col gap-12 max-w-200 mx-auto">
+          {messages.length > 0
+            ? messages.map((msg, idx) => (
                 <div
-                  className={`group px-4 py-2 rounded-2xl shadow-2xl text-base whitespace-pre-line break-words relative transition-colors backdrop-bl-lg
-                    ${
-                      msg.role === "user"
-                        ? "bg-blue-100/80 text-blue-900 rounded-br-md border border-blue-200/60 ring-1 ring-blue-300/20"
-                        : "bg-white/80 text-blue-900 rounded-bl-md border border-gray-200/60 ring-1 ring-blue-400/10"
-                    }
-                  `}
-                  style={{
-                    boxShadow:
-                      "0 8px 40px 0 rgba(0,0,0,0.16), 0 2px 8px 0 rgba(0,0,0,0.10)",
-                    backdropFilter: "blur(16px)",
-                  }}
+                  key={msg.id ?? idx}
+                  ref={idx === lastUserIdx ? lastUserMsgRef : undefined}
+                  className={`flex ${
+                    msg.role === "user" ? "justify-end" : "justify-start"
+                  }`}
                 >
-                  {msg.role === "assistant" && !msg.content ? (
-                    <div className="flex items-center gap-2">
-                      <Spin size="small" />
-                      <span className="animate-pulse">正在思考</span>
-                    </div>
-                  ) : editingMsgId === msg.id ? (
-                    <div className="relative w-full">
-                      <Input.TextArea
-                        autoSize={{ minRows: 4, maxRows: 6 }}
-                        className="w-full pr-28 resize-none"
-                        value={editingValue}
-                        variant="borderless"
-                        onChange={(e) => setEditingValue(e.target.value)}
-                        onPressEnter={(e) => {
-                          if (!e.shiftKey) {
-                            e.preventDefault()
-                            handleEditOk()
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") handleEditCancel()
-                        }}
-                        autoFocus
-                      />
-                      <div className="absolute bottom-0 right-0 flex gap-2 z-10">
-                        <Button
-                          size="small"
-                          type="primary"
-                          onClick={handleEditOk}
-                          disabled={!editingValue.trim()}
-                        >
-                          发送
-                        </Button>
-                        <Button size="small" onClick={handleEditCancel}>
-                          取消
-                        </Button>
+                  <div
+                    className={`group px-4 py-2 rounded-2xl shadow-2xl text-base whitespace-pre-line break-words relative transition-colors backdrop-bl-lg
+                      ${
+                        msg.role === "user"
+                          ? "bg-blue-100/80 text-blue-900 rounded-br-md border border-blue-200/60 ring-1 ring-blue-300/20"
+                          : "bg-white/80 text-blue-900 rounded-bl-md border border-gray-200/60 ring-1 ring-blue-400/10"
+                      }
+                    `}
+                    style={{
+                      boxShadow:
+                        "0 8px 40px 0 rgba(0,0,0,0.16), 0 2px 8px 0 rgba(0,0,0,0.10)",
+                      backdropFilter: "blur(16px)",
+                    }}
+                  >
+                    {msg.role === "assistant" && !msg.content ? (
+                      <div className="flex items-center gap-2">
+                        <Spin size="small" />
+                        <span className="animate-pulse">正在思考</span>
                       </div>
-                    </div>
-                  ) : (
-                    msg.content
-                  )}
-                  {typeof msg.id === "number" && (
-                    <div className="absolute right-0 mt-3 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                      {msg.role === "user" && (
+                    ) : editingMsgId === msg.id ? (
+                      <div className="relative w-full">
+                        <Input.TextArea
+                          autoSize={{ minRows: 4, maxRows: 6 }}
+                          className="w-full pr-28 resize-none"
+                          value={editingValue}
+                          variant="borderless"
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onPressEnter={(e) => {
+                            if (!e.shiftKey) {
+                              e.preventDefault()
+                              handleEditOk()
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") handleEditCancel()
+                          }}
+                          autoFocus
+                        />
+                        <div className="absolute bottom-0 right-0 flex gap-2 z-10">
+                          <Button
+                            size="small"
+                            type="primary"
+                            onClick={handleEditOk}
+                            disabled={!editingValue.trim()}
+                          >
+                            发送
+                          </Button>
+                          <Button size="small" onClick={handleEditCancel}>
+                            取消
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
+                    {typeof msg.id === "number" && (
+                      <div className="absolute right-0 mt-3 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        {msg.role === "user" && (
+                          <Button
+                            className="p-0"
+                            type="link"
+                            size="small"
+                            shape="circle"
+                            icon={<EditOutlined />}
+                            title="编辑"
+                            onClick={() => handleEdit(msg.id!, msg.content)}
+                          />
+                        )}
+                        {msg.role === "user" && (
+                          <Button
+                            className="p-0"
+                            type="link"
+                            size="small"
+                            shape="circle"
+                            onClick={() => onResendMessage?.(msg.id!)}
+                            icon={<RedoOutlined />}
+                          />
+                        )}
                         <Button
                           className="p-0"
                           type="link"
                           size="small"
                           shape="circle"
-                          icon={<EditOutlined />}
-                          title="编辑"
-                          onClick={() => handleEdit(msg.id!, msg.content)}
+                          onClick={() => handleCopy(msg.id!, msg.content)}
+                          icon={
+                            copiedMsgId === msg.id ? (
+                              <CheckOutlined />
+                            ) : (
+                              <CopyOutlined />
+                            )
+                          }
+                          title={copiedMsgId === msg.id ? "已复制" : "复制"}
                         />
-                      )}
-                      {msg.role === "user" && (
-                        <Button
-                          className="p-0"
-                          type="link"
-                          size="small"
-                          shape="circle"
-                          onClick={() => onResendMessage?.(msg.id!)}
-                          icon={<RedoOutlined />}
-                        />
-                      )}
-                      <Button
-                        className="p-0"
-                        type="link"
-                        size="small"
-                        shape="circle"
-                        onClick={() => handleCopy(msg.id!, msg.content)}
-                        icon={
-                          copiedMsgId === msg.id ? (
-                            <CheckOutlined />
-                          ) : (
-                            <CopyOutlined />
-                          )
-                        }
-                        title={copiedMsgId === msg.id ? "已复制" : "复制"}
-                      />
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
-          : null}
+              ))
+            : null}
+        </div>
       </div>
     </div>
   )

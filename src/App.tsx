@@ -21,6 +21,8 @@ function App() {
   } = useSessions()
   // 模型管理
   const { model, setModel, MODEL_LIST } = useModel(isInitialized)
+  // 智能长记忆模式开关
+  const [useSummary, setUseSummary] = useState(true)
   // 聊天输入与发送
   const { input, setInput, handleSend } = useChatStream({
     sessions,
@@ -28,6 +30,7 @@ function App() {
     activeSessionId,
     setActiveSessionId,
     model,
+    useSummary,
   })
 
   const [renameModalVisible, setRenameModalVisible] = useState(false)
@@ -238,6 +241,8 @@ function App() {
             activeSessionId={activeSessionId}
             onResendMessage={handleResendMessage}
             onEditMessage={handleEditMessage}
+            useSummary={useSummary}
+            onToggleSummary={setUseSummary}
           />
           {/* 输入栏 */}
           <ChatInput
