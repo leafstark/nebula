@@ -1,5 +1,5 @@
 import { Input, Button } from "antd"
-import { StopOutlined, UpCircleFilled } from "@ant-design/icons"
+import { UpCircleFilled } from "@ant-design/icons"
 
 interface Props {
   input: string
@@ -45,8 +45,7 @@ export default function ChatInput({
                 if (input.trim() && !isStreaming) onSend(e)
               }
             }}
-            disabled={isStreaming}
-            bordered={false}
+            variant="borderless"
           />
         </div>
         {/* 按钮区：居中放在输入框下方 */}
@@ -55,7 +54,19 @@ export default function ChatInput({
             <Button
               type="text"
               size="large"
-              icon={<StopOutlined className="text-3xl" />}
+              icon={
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 28 28"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="text-3xl"
+                >
+                  <circle cx="14" cy="14" r="14" fill="black" />
+                  <rect x="8" y="8" width="12" height="12" fill="white" />
+                </svg>
+              }
               onClick={onStopStream}
               tabIndex={0}
               aria-label="终止"

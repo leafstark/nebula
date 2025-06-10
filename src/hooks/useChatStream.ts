@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import type { Session } from "../components/SessionList"
 
-// 抽取流式请求和消息处理的核心逻辑，支持 abort
 async function streamChatCompletion({
   targetSessionId,
   messagesForApi,
@@ -33,8 +32,8 @@ async function streamChatCompletion({
     if (res.status !== 200) {
       const errorText = await res.text()
       console.error("API 错误:", errorText)
-      setSessions((prevSessions) =>
-        prevSessions.map((s) => {
+      setSessions((prevSessions) => {
+        const updated = prevSessions.map((s) => {
           if (s.id !== targetSessionId) return s
           const msgs = [...s.messages]
           const lastMsg = msgs[msgs.length - 1]
@@ -47,7 +46,14 @@ async function streamChatCompletion({
           }
           return s
         })
-      )
+        // 置顶有交互的 session
+        const idx = updated.findIndex((s) => s.id === targetSessionId)
+        if (idx > 0) {
+          const [session] = updated.splice(idx, 1)
+          updated.unshift(session)
+        }
+        return updated
+      })
       onStreamEnd?.()
       return
     }
@@ -78,8 +84,8 @@ async function streamChatCompletion({
             }
           }
         }
-        setSessions((prevSessions) =>
-          prevSessions.map((s) => {
+        setSessions((prevSessions) => {
+          const updated = prevSessions.map((s) => {
             if (s.id !== targetSessionId) return s
             const msgs = [...s.messages]
             const lastMsg = msgs[msgs.length - 1]
@@ -92,7 +98,14 @@ async function streamChatCompletion({
             }
             return s
           })
-        )
+          // 置顶有交互的 session
+          const idx = updated.findIndex((s) => s.id === targetSessionId)
+          if (idx > 0) {
+            const [session] = updated.splice(idx, 1)
+            updated.unshift(session)
+          }
+          return updated
+        })
       }
     }
     onStreamEnd?.()
@@ -102,8 +115,8 @@ async function streamChatCompletion({
       // 不做 setSessions 内容覆盖
     } else {
       console.error("API 调用失败:", error)
-      setSessions((prevSessions) =>
-        prevSessions.map((s) => {
+      setSessions((prevSessions) => {
+        const updated = prevSessions.map((s) => {
           if (s.id !== targetSessionId) return s
           const msgs = [...s.messages]
           const lastMsg = msgs[msgs.length - 1]
@@ -113,7 +126,14 @@ async function streamChatCompletion({
           }
           return s
         })
-      )
+        // 置顶有交互的 session
+        const idx = updated.findIndex((s) => s.id === targetSessionId)
+        if (idx > 0) {
+          const [session] = updated.splice(idx, 1)
+          updated.unshift(session)
+        }
+        return updated
+      })
     }
     onStreamEnd?.()
   }
@@ -349,8 +369,8 @@ export function useChatStream({
       } else {
         messagesForApi = allMessages
       }
-      setSessions((prevSessions) =>
-        prevSessions.map((s) =>
+      setSessions((prevSessions) => {
+        const updated = prevSessions.map((s) =>
           s.id === targetSessionId
             ? {
                 ...s,
@@ -361,7 +381,14 @@ export function useChatStream({
               }
             : s
         )
-      )
+        // 置顶有交互的 session
+        const idx = updated.findIndex((s) => s.id === targetSessionId)
+        if (idx > 0) {
+          const [session] = updated.splice(idx, 1)
+          updated.unshift(session)
+        }
+        return updated
+      })
     }
     // 先流式请求，再摘要
     const abortController = new AbortController()
@@ -419,7 +446,18 @@ export function useChatStream({
         targetSessionId: sessionId,
         messagesForApi,
         model: eventModel,
-        setSessions,
+        setSessions: (updater) => {
+          // 置顶有交互的 session
+          setSessions((prevSessions) => {
+            const updated = typeof updater === 'function' ? updater(prevSessions) : updater
+            const idx = updated.findIndex((s) => s.id === sessionId)
+            if (idx > 0) {
+              const [session] = updated.splice(idx, 1)
+              updated.unshift(session)
+            }
+            return updated
+          })
+        },
         onStreamStart: () => setIsStreaming(true),
         onStreamEnd: () => setIsStreaming(false),
         abortSignal: abortController.signal,

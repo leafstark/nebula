@@ -1,4 +1,4 @@
-import { Button, Spin, Input } from "antd"
+import { Button, Input } from "antd"
 import {
   RedoOutlined,
   CopyOutlined,
@@ -229,8 +229,7 @@ export default function ChatWindow({
                     `}
                   >
                     {msg.role === "assistant" && !msg.content ? (
-                      <div className="flex items-center gap-2">
-                        <Spin size="small" />
+                      <div className="flex items-center gap-2 animate-pulse">
                         <span className="animate-pulse">正在思考</span>
                       </div>
                     ) : editingMsgId === msg.id ? (
