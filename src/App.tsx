@@ -224,7 +224,7 @@ function App() {
         collapsed={collapsed}
         collapsible
         collapsedWidth={0}
-        className="bg-neutral-50 h-full flex flex-col relative"
+        className="bg-neutral-50 h-full flex flex-col relative overflow-hidden"
       >
         {/* 展开时，右上角触发按钮 */}
         {!collapsed && (
@@ -269,7 +269,7 @@ function App() {
           />
         </Layout.Header>
         {/* 主体区域 */}
-        <Layout.Content className="flex-1 flex flex-col overflow-hidden">
+        <Layout.Content className="flex-1 flex flex-col">
           {/* 聊天主窗口 */}
           <section className="flex-1 flex flex-col justify-end bg-white relative min-h-0 h-full">
             <ChatWindow

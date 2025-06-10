@@ -62,7 +62,7 @@ export default function SessionList({
   }
 
   return (
-    <div className="flex-1 max-h-screen overflow-y-auto border-r border-neutral-50 p-6 flex flex-col">
+    <div className="flex-1 max-h-full min-h-0 overflow-y-auto p-6 flex flex-col">
       <Button
         type="text"
         icon={<FormOutlined />}
@@ -72,7 +72,7 @@ export default function SessionList({
         <span className="text-left w-full">新聊天</span>
       </Button>
       <span className="text-neutral-400 pl-3 text-sm mb-2">聊天</span>
-      <div className="overflow-y-auto w-full shrink-0">
+      <div className="w-full flex-1 max-h-full shrink-0">
         {sessions.length === 0 ? (
           <div className="text-neutral-300 text-sm text-center mt-16">
             暂无会话
