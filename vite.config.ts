@@ -10,7 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'cloud.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'nebula.svg'],
       manifest: {
         name: 'Nebula',
         short_name: 'Nebula',
@@ -22,8 +22,8 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'artificial-intelligence.png',
-            sizes: '512x512',
+            src: 'nebula.png',
+            sizes: '1024x1024',
             type: 'image/png',
             purpose: 'any maskable'
           }

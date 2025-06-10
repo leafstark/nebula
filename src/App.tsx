@@ -236,9 +236,9 @@ function App() {
             className="absolute top-3 right-1 z-20 backdrop-blur-md"
           />
         )}
-        <p className="pt-3 font-sans text-3xl font-bold text-center tracking-tight text-neutral-700">
+        <div className="h-16 flex items-center justify-center font-sans text-3xl font-bold tracking-tight text-neutral-700">
           Nebula
-        </p>
+        </div>
         <SessionList
           sessions={sessions}
           activeSessionId={activeSessionId}
@@ -258,15 +258,16 @@ function App() {
               onChange={setModel}
               size="large"
               variant="borderless"
+              popupMatchSelectWidth={false}
               options={MODEL_LIST.map((m) => ({ label: m, value: m }))}
             />
           </div>
-          <Switch
+          {/* <Switch
             checked={useSummary}
             onChange={setUseSummary}
             checkedChildren="智能长记忆"
             unCheckedChildren="关闭"
-          />
+          /> */}
         </Layout.Header>
         {/* 主体区域 */}
         <Layout.Content className="flex-1 flex flex-col">
