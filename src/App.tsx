@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
-import { Select, Switch, Layout, Button } from "antd"
-// import "antd/dist/reset.css"
+import { Select, Layout, Button, Switch } from "antd"
+
 import SessionList from "./components/SessionList"
 import ChatWindow from "./components/ChatWindow"
 import ChatInput from "./components/ChatInput"
@@ -25,14 +25,15 @@ function App() {
   // 智能长记忆模式开关
   const [useSummary, setUseSummary] = useState(true)
   // 聊天输入与发送
-  const { input, setInput, handleSend, isStreaming, stopStream } = useChatStream({
-    sessions,
-    setSessions,
-    activeSessionId,
-    setActiveSessionId,
-    model,
-    useSummary,
-  })
+  const { input, setInput, handleSend, isStreaming, stopStream } =
+    useChatStream({
+      sessions,
+      setSessions,
+      activeSessionId,
+      setActiveSessionId,
+      model,
+      useSummary,
+    })
 
   const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [renameSessionId, setRenameSessionId] = useState<number | null>(null)
@@ -262,12 +263,24 @@ function App() {
               options={MODEL_LIST.map((m) => ({ label: m, value: m }))}
             />
           </div>
-          {/* <Switch
-            checked={useSummary}
-            onChange={setUseSummary}
-            checkedChildren="智能长记忆"
-            unCheckedChildren="关闭"
-          /> */}
+          {/* 极简风格：文字与开关分离，基于 Antd Switch 二次封装，纯 Tailwind 控制外观 */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-neutral-700 font-medium select-none">
+              智能长记忆
+            </span>
+            <Switch
+              checked={useSummary}
+              onChange={setUseSummary}
+              checkedChildren={null}
+              unCheckedChildren={null}
+              className={
+                `border-neutral-200 shadow-none ` +
+                (useSummary
+                  ? '!bg-neutral-900/80'
+                  : '!bg-neutral-200/80')
+              }
+            />
+          </div>
         </Layout.Header>
         {/* 主体区域 */}
         <Layout.Content className="flex-1 flex flex-col">
