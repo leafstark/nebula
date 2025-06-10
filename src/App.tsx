@@ -263,7 +263,6 @@ function App() {
               options={MODEL_LIST.map((m) => ({ label: m, value: m }))}
             />
           </div>
-          {/* 极简风格：文字与开关分离，基于 Antd Switch 二次封装，纯 Tailwind 控制外观 */}
           <div className="flex items-center gap-3">
             <span className="text-xs text-neutral-700 font-medium select-none">
               智能长记忆
@@ -276,7 +275,7 @@ function App() {
               className={
                 `border-neutral-200 shadow-none ` +
                 (useSummary
-                  ? '!bg-neutral-900/80'
+                  ? '!bg-neutral-900/90'
                   : '!bg-neutral-200/80')
               }
             />
