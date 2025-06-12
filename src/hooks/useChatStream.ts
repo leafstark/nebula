@@ -22,6 +22,9 @@ async function streamChatCompletion({
     onStreamStart?.()
     const res = await fetch("api/v1/chat/completions", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         model,
         stream: true,
@@ -110,7 +113,12 @@ async function streamChatCompletion({
     }
     onStreamEnd?.()
   } catch (error) {
-    if (typeof error === "object" && error && "name" in error && (error as { name?: string }).name === "AbortError") {
+    if (
+      typeof error === "object" &&
+      error &&
+      "name" in error &&
+      (error as { name?: string }).name === "AbortError"
+    ) {
       // 终止时不修改内容，保留已生成部分
       // 不做 setSessions 内容覆盖
     } else {
@@ -214,7 +222,9 @@ function getMessagesWithSummary(
     if (s.round <= remainStart && s.round > covered) {
       const startRound = lastRound + 1
       const endRound = s.round
-      mergedSummaries.push(`【摘要${i + 1}：第${startRound}-${endRound}轮】\n${s.content}`)
+      mergedSummaries.push(
+        `【摘要${i + 1}：第${startRound}-${endRound}轮】\n${s.content}`
+      )
       covered = s.round
       lastRound = s.round
     }
@@ -225,8 +235,10 @@ function getMessagesWithSummary(
       ? [
           {
             role: "system",
-            content: `以下是之前多轮对话的摘要：\n${mergedSummaries.join("\n\n")}`,
-          }
+            content: `以下是之前多轮对话的摘要：\n${mergedSummaries.join(
+              "\n\n"
+            )}`,
+          },
         ]
       : []
   // 摘要未覆盖到的原文部分（即 covered~remainStart-1 这些原文）
@@ -449,7 +461,8 @@ export function useChatStream({
         setSessions: (updater) => {
           // 置顶有交互的 session
           setSessions((prevSessions) => {
-            const updated = typeof updater === 'function' ? updater(prevSessions) : updater
+            const updated =
+              typeof updater === "function" ? updater(prevSessions) : updater
             const idx = updated.findIndex((s) => s.id === sessionId)
             if (idx > 0) {
               const [session] = updated.splice(idx, 1)

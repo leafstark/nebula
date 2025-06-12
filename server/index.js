@@ -38,7 +38,6 @@ const openai = new OpenAI({
 
 // 支持流式和非流式的 chat completions
 app.post("/api/v1/chat/completions", express.json(), async (req, res) => {
-  console.log("Received request:", req.body)
   const { model, messages, stream } = req.body
   try {
     if (stream) {
