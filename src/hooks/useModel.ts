@@ -1,16 +1,9 @@
 import { useState, useEffect } from "react"
 
-const MODEL_LIST = [
-  "gpt-4.1",
-  "claude-3.7-sonnet",
-  "claude-3.7-sonnet-thought",
-  "gemini-2.5-pro",
-]
-
 export function useModel(isInitialized: boolean) {
   const [model, setModel] = useState(() => {
     const saved = localStorage.getItem("nebula-model")
-    return saved && MODEL_LIST.includes(saved) ? saved : MODEL_LIST[0]
+    return saved || "gpt-4.1"
   })
 
   useEffect(() => {
@@ -18,5 +11,5 @@ export function useModel(isInitialized: boolean) {
     localStorage.setItem("nebula-model", model)
   }, [model, isInitialized])
 
-  return { model, setModel, MODEL_LIST }
+  return { model, setModel }
 }

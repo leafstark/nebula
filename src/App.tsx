@@ -1,17 +1,49 @@
 import { useState, useEffect } from "react"
-import { Select, Layout, Button, Switch } from "antd"
+import { Select, Layout, Button } from "antd"
+import {
+  SettingOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+} from "@ant-design/icons"
 
 import SessionList from "./components/SessionList"
 import ChatWindow from "./components/ChatWindow"
 import ChatInput from "./components/ChatInput"
 import RenameModal from "./components/RenameModal"
+import SettingsModal from "./components/SettingsModal"
 import { useSessions } from "./hooks/useSessions"
 import { useModel } from "./hooks/useModel"
 import { useChatStream } from "./hooks/useChatStream"
 import type { Message } from "./components/ChatWindow"
-import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons"
+
+// 类型定义
+interface ModelConfig {
+  id: string
+  name?: string
+}
+interface ModelSourceConfig {
+  name?: string // 新增：模型源名称
+  apiKey: string
+  baseUrl: string
+  models: ModelConfig[]
+}
 
 function App() {
+  // 设置弹窗
+  const [settingsVisible, setSettingsVisible] = useState(false)
+  const [modelSources, setModelSources] = useState<ModelSourceConfig[]>(() => {
+    const local = localStorage.getItem("modelSources")
+    if (local) {
+      try {
+        return JSON.parse(local)
+      } catch {
+        return [{ name: '', apiKey: "", baseUrl: "", models: [] }]
+      }
+    }
+    return [{ name: '', apiKey: "", baseUrl: "", models: [] }]
+  })
+  // 智能长记忆模式开关
+  const [useSummary, setUseSummary] = useState(true)
   // 会话管理
   const {
     sessions,
@@ -21,9 +53,7 @@ function App() {
     isInitialized,
   } = useSessions()
   // 模型管理
-  const { model, setModel, MODEL_LIST } = useModel(isInitialized)
-  // 智能长记忆模式开关
-  const [useSummary, setUseSummary] = useState(true)
+  const { model, setModel } = useModel(isInitialized)
   // 聊天输入与发送
   const { input, setInput, handleSend, isStreaming, stopStream } =
     useChatStream({
@@ -33,6 +63,14 @@ function App() {
       setActiveSessionId,
       model,
       useSummary,
+      openaiApiKey: (() => {
+        const found = modelSources.find(cfg => cfg.models.some(m => m.id === model))
+        return found?.apiKey || modelSources[0]?.apiKey || ""
+      })(),
+      openaiBaseUrl: (() => {
+        const found = modelSources.find(cfg => cfg.models.some(m => m.id === model))
+        return found?.baseUrl || modelSources[0]?.baseUrl || ""
+      })(),
     })
 
   const [renameModalVisible, setRenameModalVisible] = useState(false)
@@ -47,6 +85,16 @@ function App() {
     userMsg: Message
     model: string
   } | null>(null)
+
+  // 保存模型源
+  const handleSaveModelSources = (configs: ModelSourceConfig[]) => {
+    setModelSources(configs)
+    localStorage.setItem("modelSources", JSON.stringify(configs))
+  }
+  // 保存智能长记忆
+  const handleSaveSummary = (summary: boolean) => {
+    setUseSummary(summary)
+  }
 
   // 新建会话
   const handleNewSession = () => {
@@ -206,6 +254,16 @@ function App() {
 
   // 当前会话
   const current = sessions.find((s) => s.id === activeSessionId)
+
+  // 模型分组：按模型源分组，分组名为模型源的名称（apiKey + baseUrl 组合或自定义名称）
+  const groupedModels = modelSources.map((cfg, idx) => ({
+    label: cfg.name?.trim() ? cfg.name : (cfg.baseUrl || `模型源${idx + 1}`),
+    options: cfg.models.map(m => ({
+      label: m.name?.trim() ? m.name : m.id,
+      value: m.id,
+    }))
+  }))
+
   return (
     <Layout className="h-screen bg-gradient-to-br from-neutral-100 via-white to-neutral-100">
       {/* 侧边栏收起时，左上角触发按钮 */}
@@ -253,33 +311,21 @@ function App() {
       <Layout className="flex-1 flex flex-col min-w-0">
         {/* 顶部导航栏，仅在主内容区顶部 */}
         <Layout.Header className="w-full flex items-center justify-between px-12 py-4 bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
-          <div className="flex items-center gap-4">
-            <Select
-              value={model}
-              onChange={setModel}
-              size="large"
-              variant="borderless"
-              popupMatchSelectWidth={false}
-              options={MODEL_LIST.map((m) => ({ label: m, value: m }))}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-neutral-700 font-medium select-none">
-              智能长记忆
-            </span>
-            <Switch
-              checked={useSummary}
-              onChange={setUseSummary}
-              checkedChildren={null}
-              unCheckedChildren={null}
-              className={
-                `border-neutral-200 shadow-none ` +
-                (useSummary
-                  ? '!bg-neutral-900/90'
-                  : '!bg-neutral-200/80')
-              }
-            />
-          </div>
+          <Select
+            value={model}
+            onChange={setModel}
+            size="large"
+            variant="borderless"
+            popupMatchSelectWidth={false}
+            options={groupedModels}
+          />
+          {/* 设置按钮 icon 替换文字 */}
+          <Button
+            type="text"
+            size="large"
+            icon={<SettingOutlined />}
+            onClick={() => setSettingsVisible(true)}
+          />
         </Layout.Header>
         {/* 主体区域 */}
         <Layout.Content className="flex-1 flex flex-col">
@@ -299,6 +345,15 @@ function App() {
               activeSessionId={activeSessionId}
               isStreaming={isStreaming}
               onStopStream={stopStream}
+            />
+            {/* 设置弹窗 */}
+            <SettingsModal
+              visible={settingsVisible}
+              onClose={() => setSettingsVisible(false)}
+              onSaveModelSources={handleSaveModelSources}
+              onSaveSummary={handleSaveSummary}
+              modelSources={modelSources}
+              useSummary={useSummary}
             />
           </section>
         </Layout.Content>

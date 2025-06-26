@@ -30,15 +30,24 @@ app.use(
   })
 )
 
-// OpenAI SDK 初始化
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-  baseURL: OPENAI_BASE_URL,
-})
+// OpenAI SDK 实例化函数
+function getOpenAIInstance({ apiKey, baseURL }) {
+  return new OpenAI({
+    apiKey,
+    baseURL,
+  })
+}
 
 // 支持流式和非流式的 chat completions
 app.post("/api/v1/chat/completions", express.json(), async (req, res) => {
-  const { model, messages, stream } = req.body
+  const { model, messages, stream, openaiBaseUrl } = req.body
+  // 优先使用 header 里的 key，其次环境变量
+  const apiKey = req.header("X-OPENAI-API-KEY") || OPENAI_API_KEY
+  const baseURL = openaiBaseUrl || OPENAI_BASE_URL
+  if (!apiKey) {
+    return res.status(400).json({ error: "缺少 OpenAI API Key" })
+  }
+  const openai = getOpenAIInstance({ apiKey, baseURL })
   try {
     if (stream) {
       // 流式输出
@@ -65,7 +74,8 @@ app.post("/api/v1/chat/completions", express.json(), async (req, res) => {
       res.json(completion)
     }
   } catch (err) {
-    res.status(500).send(err?.message || "OpenAI API 调用失败")
+    // 返回详细错误信息
+    res.status(500).json({ error: err?.message || "OpenAI API 调用失败" })
   }
 })
 

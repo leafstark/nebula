@@ -9,6 +9,8 @@ async function streamChatCompletion({
   onStreamStart,
   onStreamEnd,
   abortSignal,
+  openaiApiKey,
+  openaiBaseUrl,
 }: {
   targetSessionId: number
   messagesForApi: Array<{ role: string; content: string; id?: number }>
@@ -17,6 +19,8 @@ async function streamChatCompletion({
   onStreamStart?: () => void
   onStreamEnd?: () => void
   abortSignal?: AbortSignal
+  openaiApiKey?: string
+  openaiBaseUrl?: string
 }) {
   try {
     onStreamStart?.()
@@ -24,11 +28,13 @@ async function streamChatCompletion({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(openaiApiKey ? { "X-OPENAI-API-KEY": openaiApiKey } : {}),
       },
       body: JSON.stringify({
         model,
         stream: true,
         messages: messagesForApi,
+        openaiBaseUrl,
       }),
       signal: abortSignal,
     })
@@ -157,21 +163,18 @@ async function summarizeMessages(
     ...messages,
     {
       role: "user",
-      content: `请将以上对话内容提炼为结构化摘要，包括：
+      content: `请将以上对话内容提炼为一份摘要，包含以下部分：
 
-## 事件要点
-简要描述发生了什么事件。
+### 核心议题
+对话围绕的主要问题或话题是什么。
 
-## 人物情绪
-各个角色情绪状态的变化（如生气、疑惑、信任等）。
+### 关键信息
+对话中提到的最重要信息、数据或观点。
 
-## 关系进展
-角色之间的关系是否有所进展或恶化？
+### 结论或下一步
+对话达成了什么共识、结论，或者下一步计划是什么。
 
-## 重要伏笔
-如果有台词暗示、行为转变，请单独记录。
-
-请保持格式清晰，避免冗余。内容请使用第三人称。`,
+请使用第三人称，保持客观、简洁。`,
     },
   ]
   try {
@@ -311,6 +314,8 @@ export function useChatStream({
   setActiveSessionId,
   model,
   useSummary = true,
+  openaiApiKey,
+  openaiBaseUrl,
 }: {
   sessions: Session[]
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
@@ -318,6 +323,8 @@ export function useChatStream({
   setActiveSessionId: (id: number | null) => void
   model: string
   useSummary?: boolean
+  openaiApiKey?: string
+  openaiBaseUrl?: string
 }) {
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
@@ -413,6 +420,8 @@ export function useChatStream({
       onStreamStart: () => setIsStreaming(true),
       onStreamEnd: () => setIsStreaming(false),
       abortSignal: abortController.signal,
+      openaiApiKey,
+      openaiBaseUrl,
     })
     abortControllerRef.current = null
     if (useSummary) {
@@ -474,6 +483,8 @@ export function useChatStream({
         onStreamStart: () => setIsStreaming(true),
         onStreamEnd: () => setIsStreaming(false),
         abortSignal: abortController.signal,
+        openaiApiKey,
+        openaiBaseUrl,
       })
       abortControllerRef.current = null
       if (useSummary) {
@@ -482,7 +493,7 @@ export function useChatStream({
     }
     window.addEventListener("resend-message", handler)
     return () => window.removeEventListener("resend-message", handler)
-  }, [setSessions, model, sessions, useSummary, isStreaming])
+  }, [setSessions, model, sessions, useSummary, isStreaming, openaiApiKey, openaiBaseUrl])
 
   return { input, setInput, handleSend, isStreaming, stopStream }
 }

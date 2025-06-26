@@ -1,1 +1,26 @@
 @import "tailwindcss" important;
+
+/* 设置弹窗菜单和保存按钮风格与 SessionList 保持一致 */
+.custom-settings-menu .ant-menu-item {
+  transition: background 0.2s;
+  border-radius: 8px;
+}
+.custom-settings-menu .ant-menu-item-selected,
+.custom-settings-menu .ant-menu-item-active {
+  background: #e5e7eb !important; /* SessionList 选中色 */
+  color: #1a1a1a !important;
+}
+.custom-settings-menu .ant-menu-item:hover {
+  background: #f3f4f6 !important; /* SessionList hover 色 */
+  color: #1a1a1a !important;
+}
+.custom-settings-save-btn {
+  background: #1a1a1a !important; /* SessionList 新建按钮主色 */
+  border-color: #1a1a1a !important;
+  color: #fff !important;
+}
+.custom-settings-save-btn:hover, .custom-settings-save-btn:focus {
+  background: #111827 !important;
+  border-color: #111827 !important;
+  color: #fff !important;
+}
