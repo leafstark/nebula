@@ -37,10 +37,10 @@ function App() {
       try {
         return JSON.parse(local)
       } catch {
-        return [{ name: '', apiKey: "", baseUrl: "", models: [] }]
+        return []
       }
     }
-    return [{ name: '', apiKey: "", baseUrl: "", models: [] }]
+    return []
   })
   // 智能长记忆模式开关
   const [useSummary, setUseSummary] = useState(true)
