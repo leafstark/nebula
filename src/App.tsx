@@ -28,6 +28,17 @@ interface ModelSourceConfig {
   models: ModelConfig[]
 }
 
+const DEFAULT_MODEL_SOURCE: ModelSourceConfig = {
+  name: "nebula",
+  apiKey: "9qRjL7wZkXyV3sN0aP1bC5fG8hJ2mK4",
+  baseUrl: "https://wings-copilot.test.tigerbrokers.net/api/v1",
+  models: [
+    { id: "gpt-4.1", name: "GPT-4.1" },
+    { id: "claude-3.7-sonnet", name: "Claude 3.7 Sonnet" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+  ],
+}
+
 function App() {
   // 设置弹窗
   const [settingsVisible, setSettingsVisible] = useState(false)
@@ -35,12 +46,15 @@ function App() {
     const local = localStorage.getItem("modelSources")
     if (local) {
       try {
-        return JSON.parse(local)
-      } catch {
-        return []
+        const parsed = JSON.parse(local)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed
+        }
+      } catch (e) {
+        console.error("Failed to parse modelSources from localStorage", e)
       }
     }
-    return []
+    return [DEFAULT_MODEL_SOURCE]
   })
   // 智能长记忆模式开关
   const [useSummary, setUseSummary] = useState(true)
@@ -64,11 +78,15 @@ function App() {
       model,
       useSummary,
       openaiApiKey: (() => {
-        const found = modelSources.find(cfg => cfg.models.some(m => m.id === model))
+        const found = modelSources.find((cfg) =>
+          cfg.models.some((m) => m.id === model)
+        )
         return found?.apiKey || modelSources[0]?.apiKey || ""
       })(),
       openaiBaseUrl: (() => {
-        const found = modelSources.find(cfg => cfg.models.some(m => m.id === model))
+        const found = modelSources.find((cfg) =>
+          cfg.models.some((m) => m.id === model)
+        )
         return found?.baseUrl || modelSources[0]?.baseUrl || ""
       })(),
     })
@@ -257,11 +275,11 @@ function App() {
 
   // 模型分组：按模型源分组，分组名为模型源的名称（apiKey + baseUrl 组合或自定义名称）
   const groupedModels = modelSources.map((cfg, idx) => ({
-    label: cfg.name?.trim() ? cfg.name : (cfg.baseUrl || `模型源${idx + 1}`),
-    options: cfg.models.map(m => ({
+    label: cfg.name?.trim() ? cfg.name : cfg.baseUrl || `模型源${idx + 1}`,
+    options: cfg.models.map((m) => ({
       label: m.name?.trim() ? m.name : m.id,
       value: m.id,
-    }))
+    })),
   }))
 
   return (

@@ -38,17 +38,6 @@ interface SettingsModalProps {
   useSummary: boolean
 }
 
-const DEFAULT_MODEL_SOURCE: ModelSourceConfig = {
-  name: "nebula",
-  apiKey: "9qRjL7wZkXyV3sN0aP1bC5fG8hJ2mK4",
-  baseUrl: "https://wings-copilot.test.tigerbrokers.net/api/v1",
-  models: [
-    { id: "gpt-4.1", name: "GPT-4.1" },
-    { id: "claude-3.7-sonnet", name: "Claude 3.7 Sonnet" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-  ],
-}
-
 export default function SettingsModal({
   visible,
   onClose,
@@ -78,12 +67,7 @@ export default function SettingsModal({
 
   useEffect(() => {
     if (visible) {
-      // 新用户无模型源时，自动插入默认模型源
-      if (!modelSources || modelSources.length === 0) {
-        setSources([DEFAULT_MODEL_SOURCE])
-      } else {
-        setSources(modelSources)
-      }
+      setSources(modelSources)
       setSummary(useSummary)
     }
   }, [visible, modelSources, useSummary])
