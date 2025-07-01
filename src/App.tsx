@@ -29,14 +29,28 @@ interface ModelSourceConfig {
 }
 
 const DEFAULT_MODEL_SOURCE: ModelSourceConfig = {
-  name: "nebula",
-  apiKey: "9qRjL7wZkXyV3sN0aP1bC5fG8hJ2mK4",
-  baseUrl: "https://wings-copilot.test.tigerbrokers.net/api/v1",
-  models: [
-    { id: "gpt-4.1", name: "GPT-4.1" },
-    { id: "claude-3.7-sonnet", name: "Claude 3.7 Sonnet" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-  ],
+  name: import.meta.env.VITE_DEFAULT_MODEL_SOURCE_NAME || "默认模型源",
+  apiKey: import.meta.env.VITE_DEFAULT_MODEL_SOURCE_API_KEY || "",
+  baseUrl:
+    import.meta.env.VITE_DEFAULT_MODEL_SOURCE_BASE_URL ||
+    "https://api.openai.com/v1",
+  models: (() => {
+    const modelsStr = import.meta.env.VITE_DEFAULT_MODEL_SOURCE_MODELS
+    if (modelsStr) {
+      try {
+        const parsed = JSON.parse(modelsStr)
+        if (Array.isArray(parsed)) {
+          return parsed
+        }
+      } catch (e) {
+        console.error(
+          "Failed to parse VITE_DEFAULT_MODEL_SOURCE_MODELS from .env",
+          e
+        )
+      }
+    }
+    return []
+  })(),
 }
 
 function App() {
