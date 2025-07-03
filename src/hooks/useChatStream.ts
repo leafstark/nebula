@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, use } from "react"
 import type { Session } from "../components/SessionList"
 
 async function streamChatCompletion({
@@ -157,6 +157,8 @@ async function streamChatCompletion({
 async function summarizeMessages(
   messages: Array<{ role: string; content: string }>,
   model: string,
+  openaiBaseUrl?: string,
+  openaiApiKey?: string,
   retry = 0
 ): Promise<string> {
   const summaryPrompt = [
@@ -180,10 +182,15 @@ async function summarizeMessages(
   try {
     const res = await fetch("api/v1/chat/completions", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(openaiApiKey ? { "X-OPENAI-API-KEY": openaiApiKey } : {}),
+      },
       body: JSON.stringify({
         model,
         stream: false,
         messages: summaryPrompt,
+        openaiBaseUrl,
       }),
     })
     if (res.status !== 200) throw new Error("摘要请求失败")
@@ -192,7 +199,7 @@ async function summarizeMessages(
   } catch {
     if (retry < 2) {
       // 最多重试3次
-      return summarizeMessages(messages, model, retry + 1)
+      return summarizeMessages(messages, model, openaiBaseUrl, openaiApiKey, retry + 1)
     }
     return "[摘要失败]"
   }
@@ -255,7 +262,9 @@ function getMessagesWithSummary(
 const triggerSummarization = async (
   sessionId: number,
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>,
-  model: string
+  model: string,
+  openaiBaseUrl?: string,
+  openaiApiKey?: string
 ) => {
   let latestSessions: Session[] = []
   setSessions((prev) => {
@@ -285,7 +294,9 @@ const triggerSummarization = async (
       .flat()
     const summary = await summarizeMessages(
       toSummarize.map(({ role, content }) => ({ role, content })),
-      model
+      model,
+      openaiBaseUrl,
+      openaiApiKey
     )
     if (summary !== "[摘要失败]") {
       const newSummaries = [
@@ -328,11 +339,9 @@ export function useChatStream({
   openaiBaseUrl?: string
   systemPrompt?: string
 }) {
-  console.log(systemPrompt, "systemPrompt in useChatStream")
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
-  console.log(systemPrompt, "systemPrompt in handleSend")
   // 发送消息（流式回复）
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -430,7 +439,13 @@ export function useChatStream({
     })
     abortControllerRef.current = null
     if (useSummary) {
-      await triggerSummarization(targetSessionId, setSessions, model)
+      await triggerSummarization(
+        targetSessionId,
+        setSessions,
+        model,
+        openaiBaseUrl,
+        openaiApiKey
+      )
     }
   }
 
@@ -448,7 +463,6 @@ export function useChatStream({
       const {
         sessionId,
         messages,
-        userMsg,
         model: resendModel,
       } = (e as CustomEvent).detail
       let messagesForApi: Array<{
@@ -511,7 +525,7 @@ export function useChatStream({
       })
       abortControllerRef.current = null
       if (useSummary) {
-        await triggerSummarization(sessionId, setSessions, model)
+        await triggerSummarization(sessionId, setSessions, model, openaiBaseUrl, openaiApiKey)
       }
     }
     window.addEventListener("resend-message", handler)
