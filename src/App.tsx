@@ -4,6 +4,7 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  BulbOutlined,
 } from "@ant-design/icons"
 
 import SessionList from "./components/SessionList"
@@ -11,6 +12,7 @@ import ChatWindow from "./components/ChatWindow"
 import ChatInput from "./components/ChatInput"
 import RenameModal from "./components/RenameModal"
 import SettingsModal from "./components/SettingsModal"
+import SystemPromptModal from "./components/SystemPromptModal"
 import { useSessions } from "./hooks/useSessions"
 import { useModel } from "./hooks/useModel"
 import { useChatStream } from "./hooks/useChatStream"
@@ -82,6 +84,19 @@ function App() {
   } = useSessions()
   // 模型管理
   const { model, setModel } = useModel(isInitialized)
+  // 系统提示词相关
+  const [systemPromptModalVisible, setSystemPromptModalVisible] =
+    useState(false)
+  const [systemPrompt, setSystemPrompt] = useState<string>("")
+
+  // 当 activeSessionId 变化时，同步 systemPrompt 的值
+  useEffect(() => {
+    if (activeSessionId) {
+      const session = sessions.find((s) => s.id === activeSessionId)
+      setSystemPrompt(session?.systemPrompt || "")
+    }
+  }, [activeSessionId, sessions])
+
   // 聊天输入与发送
   const { input, setInput, handleSend, isStreaming, stopStream } =
     useChatStream({
@@ -103,6 +118,7 @@ function App() {
         )
         return found?.baseUrl || modelSources[0]?.baseUrl || ""
       })(),
+      systemPrompt,
     })
 
   const [renameModalVisible, setRenameModalVisible] = useState(false)
@@ -127,11 +143,24 @@ function App() {
   const handleSaveSummary = (summary: boolean) => {
     setUseSummary(summary)
   }
+  // 保存系统提示词
+  const handleSaveSystemPrompt = () => {
+    if (activeSessionId) {
+      // 更新当前活动会话的 systemPrompt
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === activeSessionId ? { ...s, systemPrompt: systemPrompt } : s
+        )
+      )
+    }
+    setSystemPromptModalVisible(false)
+  }
 
   // 新建会话
   const handleNewSession = () => {
     setActiveSessionId(null)
     setInput("")
+    setSystemPrompt("")
   }
   // 切换会话
   const handleSelectSession = (id: number) => {
@@ -284,6 +313,8 @@ function App() {
     }
   }, [pendingResend])
 
+  // 移除旧的 pendingSystemPrompt 相关逻辑
+
   // 当前会话
   const current = sessions.find((s) => s.id === activeSessionId)
 
@@ -343,15 +374,27 @@ function App() {
       <Layout className="flex-1 flex flex-col min-w-0">
         {/* 顶部导航栏，仅在主内容区顶部 */}
         <Layout.Header className="w-full flex items-center justify-between px-12 py-4 bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
-          <Select
-            value={model}
-            onChange={setModel}
-            size="large"
-            variant="borderless"
-            popupMatchSelectWidth={false}
-            options={groupedModels}
-          />
-          {/* 设置按钮 icon 替换文字 */}
+          <div className="flex items-center gap-2">
+            <Select
+              value={model}
+              onChange={setModel}
+              size="large"
+              variant="borderless"
+              popupMatchSelectWidth={false}
+              options={groupedModels}
+            />
+            <Button
+              type="text"
+              size="large"
+              icon={<BulbOutlined />}
+              title="系统提示词"
+              onClick={() => {
+                // 打开弹窗时，systemPrompt state 已通过 useEffect 与当前会话同步
+                // 或保留了为新会话准备的值
+                setSystemPromptModalVisible(true)
+              }}
+            />
+          </div>
           <Button
             type="text"
             size="large"
@@ -396,6 +439,13 @@ function App() {
           setValue={setRenameValue}
           onOk={handleRenameOk}
           onCancel={handleRenameCancel}
+        />
+        <SystemPromptModal
+          visible={systemPromptModalVisible}
+          value={systemPrompt}
+          setValue={setSystemPrompt}
+          onOk={handleSaveSystemPrompt}
+          onCancel={() => setSystemPromptModalVisible(false)}
         />
       </Layout>
     </Layout>

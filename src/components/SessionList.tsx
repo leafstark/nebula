@@ -19,6 +19,7 @@ export interface Session {
   name: string
   messages: Message[]
   summaries?: { round: number; content: string }[] // 新增，分段摘要
+  systemPrompt?: string // 新增，每个会话独立的系统提示词
 }
 
 interface Props {

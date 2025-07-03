@@ -316,6 +316,7 @@ export function useChatStream({
   useSummary = true,
   openaiApiKey,
   openaiBaseUrl,
+  systemPrompt,
 }: {
   sessions: Session[]
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
@@ -325,11 +326,13 @@ export function useChatStream({
   useSummary?: boolean
   openaiApiKey?: string
   openaiBaseUrl?: string
+  systemPrompt?: string
 }) {
+  console.log(systemPrompt, "systemPrompt in useChatStream")
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
-
+  console.log(systemPrompt, "systemPrompt in handleSend")
   // 发送消息（流式回复）
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -349,6 +352,7 @@ export function useChatStream({
         name: newSessionName,
         messages: [{ role: "user", content: userInput, id: genMsgId() }],
         summaries: [],
+        systemPrompt,
       }
       setSessions((prevSessions) => [
         {
@@ -362,7 +366,10 @@ export function useChatStream({
       ])
       setActiveSessionId(newId)
       targetSessionId = newId
-      messagesForApi = newSession.messages
+      messagesForApi = [...newSession.messages]
+      if (systemPrompt && systemPrompt.trim()) {
+        messagesForApi.unshift({ role: "system", content: systemPrompt })
+      }
     } else {
       targetSessionId = activeSessionId
       const currentSession = sessions.find((s) => s.id === activeSessionId)
@@ -374,22 +381,27 @@ export function useChatStream({
       ]
       if (useSummary) {
         messagesForApi = getMessagesWithSummary(summaries, allMessages)
-        // 确保最后一条消息是用户输入
-        if (
-          messagesForApi.length === 0 ||
-          messagesForApi[messagesForApi.length - 1].content !== userInput
-        ) {
-          messagesForApi.push({
-            role: "user",
-            content: userInput,
-            id: genMsgId(),
-          })
-        }
       } else {
         messagesForApi = allMessages
       }
-      setSessions((prevSessions) => {
-        const updated = prevSessions.map((s) =>
+      if (systemPrompt && systemPrompt.trim()) {
+        // 检查是否已存在 system message
+        const systemMsgIndex = messagesForApi.findIndex(
+          (m) => m.role === "system"
+        )
+        if (systemMsgIndex !== -1) {
+          // 如果存在，则更新它
+          messagesForApi[systemMsgIndex] = {
+            ...messagesForApi[systemMsgIndex],
+            content: systemPrompt,
+          }
+        } else {
+          // 如果不存在，则添加到开头
+          messagesForApi.unshift({ role: "system", content: systemPrompt })
+        }
+      }
+      setSessions((prevSessions) =>
+        prevSessions.map((s) =>
           s.id === targetSessionId
             ? {
                 ...s,
@@ -400,14 +412,7 @@ export function useChatStream({
               }
             : s
         )
-        // 置顶有交互的 session
-        const idx = updated.findIndex((s) => s.id === targetSessionId)
-        if (idx > 0) {
-          const [session] = updated.splice(idx, 1)
-          updated.unshift(session)
-        }
-        return updated
-      })
+      )
     }
     // 先流式请求，再摘要
     const abortController = new AbortController()
@@ -440,33 +445,51 @@ export function useChatStream({
     // 监听重发消息事件
     const handler = async (e: Event) => {
       if (isStreaming) return
-      const detail = (e as CustomEvent).detail
-      if (!detail) return
-      const { sessionId, messages, model: eventModel } = detail
-      // 查找当前 session 的 summaries
-      const currentSession = sessions.find((s) => s.id === sessionId)
+      const {
+        sessionId,
+        messages,
+        userMsg,
+        model: resendModel,
+      } = (e as CustomEvent).detail
       let messagesForApi: Array<{
         role: string
         content: string
         id?: number
-      }> = []
-      if (currentSession) {
-        const summaries = currentSession.summaries || []
-        messagesForApi = useSummary
-          ? getMessagesWithSummary(
-              summaries,
-              messages as Array<{ role: string; content: string; id?: number }>
-            )
-          : (messages as Array<{ role: string; content: string; id?: number }>)
-      } else {
-        messagesForApi = messages
+      }> = messages
+      if (useSummary) {
+        const currentSession = sessions.find((s) => s.id === sessionId)
+        if (currentSession) {
+          messagesForApi = getMessagesWithSummary(
+            currentSession.summaries || [],
+            messages
+          )
+        }
       }
+
+      // 确保 systemPrompt 被正确处理
+      if (systemPrompt && systemPrompt.trim()) {
+        // 检查是否已存在 system message
+        const systemMsgIndex = messagesForApi.findIndex(
+          (m) => m.role === "system"
+        )
+        if (systemMsgIndex !== -1) {
+          // 如果存在，则更新它
+          messagesForApi[systemMsgIndex] = {
+            ...messagesForApi[systemMsgIndex],
+            content: systemPrompt,
+          }
+        } else {
+          // 如果不存在，则添加到开头
+          messagesForApi.unshift({ role: "system", content: systemPrompt })
+        }
+      }
+
       const abortController = new AbortController()
       abortControllerRef.current = abortController
       await streamChatCompletion({
         targetSessionId: sessionId,
         messagesForApi,
-        model: eventModel,
+        model: resendModel,
         setSessions: (updater) => {
           // 置顶有交互的 session
           setSessions((prevSessions) => {
@@ -493,7 +516,16 @@ export function useChatStream({
     }
     window.addEventListener("resend-message", handler)
     return () => window.removeEventListener("resend-message", handler)
-  }, [setSessions, model, sessions, useSummary, isStreaming, openaiApiKey, openaiBaseUrl])
+  }, [
+    setSessions,
+    model,
+    sessions,
+    useSummary,
+    isStreaming,
+    openaiApiKey,
+    openaiBaseUrl,
+    systemPrompt,
+  ])
 
   return { input, setInput, handleSend, isStreaming, stopStream }
 }
