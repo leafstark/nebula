@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import type { Session } from "../components/SessionList"
 
 async function streamChatCompletion({
@@ -125,8 +125,26 @@ async function streamChatCompletion({
       "name" in error &&
       (error as { name?: string }).name === "AbortError"
     ) {
-      // 终止时不修改内容，保留已生成部分
-      // 不做 setSessions 内容覆盖
+      // 终止时，在消息末尾追加一个标记
+      setSessions((prevSessions) => {
+        return prevSessions.map((s) => {
+          if (s.id !== targetSessionId) return s
+          const msgs = [...s.messages]
+          const lastMsg = msgs[msgs.length - 1]
+          if (lastMsg?.role === "assistant") {
+            // 如果已经有内容，则在后面追加，否则直接设置为标记
+            const newContent = lastMsg.content
+              ? `${lastMsg.content} [手动中断]`
+              : "[手动中断]"
+            msgs[msgs.length - 1] = {
+              ...lastMsg,
+              content: newContent,
+            }
+            return { ...s, messages: msgs }
+          }
+          return s
+        })
+      })
     } else {
       console.error("API 调用失败:", error)
       setSessions((prevSessions) => {
@@ -199,7 +217,13 @@ async function summarizeMessages(
   } catch {
     if (retry < 2) {
       // 最多重试3次
-      return summarizeMessages(messages, model, openaiBaseUrl, openaiApiKey, retry + 1)
+      return summarizeMessages(
+        messages,
+        model,
+        openaiBaseUrl,
+        openaiApiKey,
+        retry + 1
+      )
     }
     return "[摘要失败]"
   }
@@ -286,6 +310,7 @@ const triggerSummarization = async (
   let summarizedRounds = 0
   if (summaries.length > 0) {
     summarizedRounds = summaries[summaries.length - 1].round
+    console.log("已摘要的轮次：", summarizedRounds)
   }
   // 只要有新的 SUMMARY_ROUND 组就提前生成摘要
   while (rounds.length >= summarizedRounds + SUMMARY_ROUND) {
@@ -342,6 +367,91 @@ export function useChatStream({
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // 提取核心流式聊天逻辑
+  const startChatStreaming = useCallback(
+    async (
+      targetSessionId: number,
+      messages: Array<{ role: string; content: string; id?: number }>,
+      streamModel: string
+    ) => {
+      let messagesForApi = [...messages]
+
+      if (useSummary) {
+        const currentSession = sessions.find((s) => s.id === targetSessionId)
+        if (currentSession) {
+          messagesForApi = getMessagesWithSummary(
+            currentSession.summaries || [],
+            messages
+          )
+        }
+      }
+
+      // 确保 systemPrompt 被正确处理
+      if (systemPrompt && systemPrompt.trim()) {
+        const systemMsgIndex = messagesForApi.findIndex(
+          (m) => m.role === "system"
+        )
+        if (systemMsgIndex !== -1) {
+          messagesForApi[systemMsgIndex] = {
+            ...messagesForApi[systemMsgIndex],
+            content: systemPrompt,
+          }
+        } else {
+          messagesForApi.unshift({ role: "system", content: systemPrompt })
+        }
+      }
+
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+
+      await streamChatCompletion({
+        targetSessionId,
+        messagesForApi,
+        model: streamModel,
+        setSessions: (updater) => {
+          // 置顶有交互的 session
+          setSessions((prevSessions) => {
+            const updated =
+              typeof updater === "function" ? updater(prevSessions) : updater
+            const idx = updated.findIndex((s) => s.id === targetSessionId)
+            if (idx > 0) {
+              const [session] = updated.splice(idx, 1)
+              updated.unshift(session)
+            }
+            return updated
+          })
+        },
+        onStreamStart: () => setIsStreaming(true),
+        onStreamEnd: () => setIsStreaming(false),
+        abortSignal: abortController.signal,
+        openaiApiKey,
+        openaiBaseUrl,
+      })
+
+      abortControllerRef.current = null
+
+      if (useSummary) {
+        await triggerSummarization(
+          targetSessionId,
+          setSessions,
+          model, // 摘要模型使用外部的
+          openaiBaseUrl,
+          openaiApiKey
+        )
+      }
+    },
+    [
+      sessions,
+      useSummary,
+      systemPrompt,
+      setSessions,
+      model,
+      openaiApiKey,
+      openaiBaseUrl,
+    ]
+  )
+
   // 发送消息（流式回复）
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -350,8 +460,8 @@ export function useChatStream({
     if (!userInput) return
     setInput("")
     let targetSessionId: number
-    let messagesForApi: Array<{ role: string; content: string; id?: number }>
     const genMsgId = () => Date.now() + Math.floor(Math.random() * 10000)
+    let allMessages: Array<{ role: string; content: string; id?: number }>
 
     if (activeSessionId === null) {
       const newId = Date.now()
@@ -375,40 +485,15 @@ export function useChatStream({
       ])
       setActiveSessionId(newId)
       targetSessionId = newId
-      messagesForApi = [...newSession.messages]
-      if (systemPrompt && systemPrompt.trim()) {
-        messagesForApi.unshift({ role: "system", content: systemPrompt })
-      }
+      allMessages = [...newSession.messages]
     } else {
       targetSessionId = activeSessionId
       const currentSession = sessions.find((s) => s.id === activeSessionId)
       if (!currentSession) return
-      const summaries = currentSession.summaries || []
-      const allMessages = [
+      allMessages = [
         ...currentSession.messages,
         { role: "user", content: userInput, id: genMsgId() },
       ]
-      if (useSummary) {
-        messagesForApi = getMessagesWithSummary(summaries, allMessages)
-      } else {
-        messagesForApi = allMessages
-      }
-      if (systemPrompt && systemPrompt.trim()) {
-        // 检查是否已存在 system message
-        const systemMsgIndex = messagesForApi.findIndex(
-          (m) => m.role === "system"
-        )
-        if (systemMsgIndex !== -1) {
-          // 如果存在，则更新它
-          messagesForApi[systemMsgIndex] = {
-            ...messagesForApi[systemMsgIndex],
-            content: systemPrompt,
-          }
-        } else {
-          // 如果不存在，则添加到开头
-          messagesForApi.unshift({ role: "system", content: systemPrompt })
-        }
-      }
       setSessions((prevSessions) =>
         prevSessions.map((s) =>
           s.id === targetSessionId
@@ -423,30 +508,7 @@ export function useChatStream({
         )
       )
     }
-    // 先流式请求，再摘要
-    const abortController = new AbortController()
-    abortControllerRef.current = abortController
-    await streamChatCompletion({
-      targetSessionId,
-      messagesForApi,
-      model,
-      setSessions,
-      onStreamStart: () => setIsStreaming(true),
-      onStreamEnd: () => setIsStreaming(false),
-      abortSignal: abortController.signal,
-      openaiApiKey,
-      openaiBaseUrl,
-    })
-    abortControllerRef.current = null
-    if (useSummary) {
-      await triggerSummarization(
-        targetSessionId,
-        setSessions,
-        model,
-        openaiBaseUrl,
-        openaiApiKey
-      )
-    }
+    await startChatStreaming(targetSessionId, allMessages, model)
   }
 
   const stopStream = () => {
@@ -465,81 +527,11 @@ export function useChatStream({
         messages,
         model: resendModel,
       } = (e as CustomEvent).detail
-      let messagesForApi: Array<{
-        role: string
-        content: string
-        id?: number
-      }> = messages
-      if (useSummary) {
-        const currentSession = sessions.find((s) => s.id === sessionId)
-        if (currentSession) {
-          messagesForApi = getMessagesWithSummary(
-            currentSession.summaries || [],
-            messages
-          )
-        }
-      }
-
-      // 确保 systemPrompt 被正确处理
-      if (systemPrompt && systemPrompt.trim()) {
-        // 检查是否已存在 system message
-        const systemMsgIndex = messagesForApi.findIndex(
-          (m) => m.role === "system"
-        )
-        if (systemMsgIndex !== -1) {
-          // 如果存在，则更新它
-          messagesForApi[systemMsgIndex] = {
-            ...messagesForApi[systemMsgIndex],
-            content: systemPrompt,
-          }
-        } else {
-          // 如果不存在，则添加到开头
-          messagesForApi.unshift({ role: "system", content: systemPrompt })
-        }
-      }
-
-      const abortController = new AbortController()
-      abortControllerRef.current = abortController
-      await streamChatCompletion({
-        targetSessionId: sessionId,
-        messagesForApi,
-        model: resendModel,
-        setSessions: (updater) => {
-          // 置顶有交互的 session
-          setSessions((prevSessions) => {
-            const updated =
-              typeof updater === "function" ? updater(prevSessions) : updater
-            const idx = updated.findIndex((s) => s.id === sessionId)
-            if (idx > 0) {
-              const [session] = updated.splice(idx, 1)
-              updated.unshift(session)
-            }
-            return updated
-          })
-        },
-        onStreamStart: () => setIsStreaming(true),
-        onStreamEnd: () => setIsStreaming(false),
-        abortSignal: abortController.signal,
-        openaiApiKey,
-        openaiBaseUrl,
-      })
-      abortControllerRef.current = null
-      if (useSummary) {
-        await triggerSummarization(sessionId, setSessions, model, openaiBaseUrl, openaiApiKey)
-      }
+      await startChatStreaming(sessionId, messages, resendModel)
     }
     window.addEventListener("resend-message", handler)
     return () => window.removeEventListener("resend-message", handler)
-  }, [
-    setSessions,
-    model,
-    sessions,
-    useSummary,
-    isStreaming,
-    openaiApiKey,
-    openaiBaseUrl,
-    systemPrompt,
-  ])
+  }, [isStreaming, startChatStreaming])
 
   return { input, setInput, handleSend, isStreaming, stopStream }
 }
