@@ -19,7 +19,9 @@ export default function SystemPromptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white rounded-2xl shadow-2xl p-8 min-w-[360px] max-w-[30vw] w-full flex flex-col gap-5 border border-neutral-100">
-        <div className="text-xl font-bold mb-2 text-neutral-800">系统提示词</div>
+        <div className="text-xl font-bold mb-2 text-neutral-800">
+          系统提示词
+        </div>
         <Input.TextArea
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -28,7 +30,7 @@ export default function SystemPromptModal({
           }}
           autoSize={{ minRows: 4, maxRows: 8 }}
           maxLength={2000}
-          placeholder="请输入系统提示词（为空则使用默认行为）"
+          placeholder="请输入系统提示词"
           className="rounded-lg border border-neutral-200 bg-neutral-50 text-base text-neutral-800 focus:border-neutral-400 focus:bg-white transition"
           autoFocus
         />
