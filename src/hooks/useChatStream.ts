@@ -393,11 +393,13 @@ export function useChatStream({
           (m) => m.role === "system"
         )
         if (systemMsgIndex !== -1) {
+          const originalSystemContent = messagesForApi[systemMsgIndex].content
           messagesForApi[systemMsgIndex] = {
             ...messagesForApi[systemMsgIndex],
-            content: systemPrompt,
+            content: `${systemPrompt}\n\n${originalSystemContent}`,
           }
         } else {
+          // 否则，在开头插入新的 system message
           messagesForApi.unshift({ role: "system", content: systemPrompt })
         }
       }
