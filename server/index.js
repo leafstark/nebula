@@ -39,7 +39,7 @@ function getOpenAIInstance({ apiKey, baseURL }) {
 }
 
 // 支持流式和非流式的 chat completions
-app.post("/api/v1/chat/completions", express.json(), async (req, res) => {
+app.post("/api/v1/chat/completions", express.json({ limit: "10mb" }), async (req, res) => {
   const { model, messages, stream, openaiBaseUrl } = req.body
   // 优先使用 header 里的 key，其次环境变量
   const apiKey = req.header("X-OPENAI-API-KEY") || OPENAI_API_KEY

@@ -399,7 +399,6 @@ export function useChatStream({
             content: `${systemPrompt}\n\n${originalSystemContent}`,
           }
         } else {
-          // 否则，在开头插入新的 system message
           messagesForApi.unshift({ role: "system", content: systemPrompt })
         }
       }
