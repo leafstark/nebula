@@ -242,7 +242,7 @@ function getMessagesWithSummary(
   for (let i = 0; i < uaMessages.length; i += 2) {
     rounds.push(uaMessages.slice(i, i + 2))
   }
-  const keepRounds = 5
+  const keepRounds = 10
   const totalRounds = rounds.length
   // 计算需要保留的原文起始位置
   const remainStart = Math.max(totalRounds - keepRounds, 0)
@@ -306,7 +306,7 @@ const triggerSummarization = async (
   for (let i = 0; i < uaMessages.length; i += 2) {
     rounds.push(uaMessages.slice(i, i + 2))
   }
-  const SUMMARY_ROUND = 5
+  const SUMMARY_ROUND = 10
   let summarizedRounds = 0
   if (summaries.length > 0) {
     summarizedRounds = summaries[summaries.length - 1].round
