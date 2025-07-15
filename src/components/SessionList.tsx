@@ -11,7 +11,7 @@ interface Message {
   id?: number
   content: string
   role: string
-  // Add other fields as needed
+  isLoading?: boolean
 }
 
 export interface Session {
@@ -110,7 +110,10 @@ export default function SessionList({
                     }`}
                     onClick={() => onSelectSession(s.id)}
                   >
-                    <span className="max-w-full pr-4 truncate text-left w-full" title={s.name}>
+                    <span
+                      className="max-w-full pr-4 truncate text-left w-full"
+                      title={s.name}
+                    >
                       {s.name}
                     </span>
                   </Button>

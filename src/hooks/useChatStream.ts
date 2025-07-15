@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { Session } from "../components/SessionList"
+import type { Message } from "../components/ChatWindow"
 
 async function streamChatCompletion({
   targetSessionId,
@@ -13,7 +14,7 @@ async function streamChatCompletion({
   openaiBaseUrl,
 }: {
   targetSessionId: number
-  messagesForApi: Array<{ role: string; content: string; id?: number }>
+  messagesForApi: Array<Message>
   model: string
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>
   onStreamStart?: () => void
@@ -50,6 +51,7 @@ async function streamChatCompletion({
             msgs[msgs.length - 1] = {
               ...lastMsg,
               content: "[API 错误]",
+              isLoading: false,
             }
             return { ...s, messages: msgs }
           }
@@ -117,6 +119,21 @@ async function streamChatCompletion({
         })
       }
     }
+
+    // 流结束后，统一更新 isLoading 状态
+    setSessions((prevSessions) => {
+      return prevSessions.map((s) => {
+        if (s.id !== targetSessionId) return s
+        const msgs = [...s.messages]
+        const lastMsg = msgs[msgs.length - 1]
+        if (lastMsg?.role === "assistant") {
+          msgs[msgs.length - 1] = { ...lastMsg, isLoading: false }
+          return { ...s, messages: msgs }
+        }
+        return s
+      })
+    })
+
     onStreamEnd?.()
   } catch (error) {
     if (
@@ -139,6 +156,7 @@ async function streamChatCompletion({
             msgs[msgs.length - 1] = {
               ...lastMsg,
               content: newContent,
+              isLoading: false,
             }
             return { ...s, messages: msgs }
           }
@@ -153,7 +171,11 @@ async function streamChatCompletion({
           const msgs = [...s.messages]
           const lastMsg = msgs[msgs.length - 1]
           if (lastMsg?.role === "assistant") {
-            msgs[msgs.length - 1] = { ...lastMsg, content: "[网络错误]" }
+            msgs[msgs.length - 1] = {
+              ...lastMsg,
+              content: "[网络错误]",
+              isLoading: false,
+            }
             return { ...s, messages: msgs }
           }
           return s
@@ -310,7 +332,6 @@ const triggerSummarization = async (
   let summarizedRounds = 0
   if (summaries.length > 0) {
     summarizedRounds = summaries[summaries.length - 1].round
-    console.log("已摘要的轮次：", summarizedRounds)
   }
   // 只要有新的 SUMMARY_ROUND 组就提前生成摘要
   while (rounds.length >= summarizedRounds + SUMMARY_ROUND) {
@@ -372,7 +393,7 @@ export function useChatStream({
   const startChatStreaming = useCallback(
     async (
       targetSessionId: number,
-      messages: Array<{ role: string; content: string; id?: number }>,
+      messages: Array<Message>,
       streamModel: string
     ) => {
       let messagesForApi = [...messages]
@@ -462,7 +483,7 @@ export function useChatStream({
     setInput("")
     let targetSessionId: number
     const genMsgId = () => Date.now() + Math.floor(Math.random() * 10000)
-    let allMessages: Array<{ role: string; content: string; id?: number }>
+    let allMessages: Array<Message>
 
     if (activeSessionId === null) {
       const newId = Date.now()
@@ -479,7 +500,12 @@ export function useChatStream({
           ...newSession,
           messages: [
             ...newSession.messages,
-            { role: "assistant", content: "", id: genMsgId() },
+            {
+              role: "assistant",
+              content: "",
+              id: genMsgId(),
+              isLoading: true,
+            },
           ],
         },
         ...prevSessions,
@@ -502,7 +528,12 @@ export function useChatStream({
                 ...s,
                 messages: [
                   ...allMessages,
-                  { role: "assistant", content: "", id: genMsgId() },
+                  {
+                    role: "assistant",
+                    content: "",
+                    id: genMsgId(),
+                    isLoading: true,
+                  },
                 ],
               }
             : s
@@ -528,11 +559,26 @@ export function useChatStream({
         messages,
         model: resendModel,
       } = (e as CustomEvent).detail
+
+      // 在重试时，也设置 isLoading 状态
+      setSessions((prevSessions) =>
+        prevSessions.map((s) => {
+          if (s.id !== sessionId) return s
+          const newMessages = [...s.messages]
+          const lastMsg = newMessages[newMessages.length - 1]
+          if (lastMsg && lastMsg.role === "assistant") {
+            lastMsg.content = ""
+            lastMsg.isLoading = true
+          }
+          return { ...s, messages: newMessages }
+        })
+      )
+
       await startChatStreaming(sessionId, messages, resendModel)
     }
     window.addEventListener("resend-message", handler)
     return () => window.removeEventListener("resend-message", handler)
-  }, [isStreaming, startChatStreaming])
+  }, [isStreaming, startChatStreaming, setSessions])
 
   return { input, setInput, handleSend, isStreaming, stopStream }
 }

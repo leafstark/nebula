@@ -11,6 +11,7 @@ export type Message = {
   role: string
   content: string
   id?: number // 新增id字段，便于操作
+  isLoading?: boolean
 }
 
 interface Props {
@@ -220,101 +221,113 @@ export default function ChatWindow({
                   }`}
                 >
                   <div
-                    className={`group px-4 py-2 text-neutral-900  text-base whitespace-pre-line break-words relative transition-colors backdrop-bl-lg
+                    className={
+                      idx === messages.length - 1 && msg.role === "assistant"
+                        ? "min-h-[calc(100dvh-370px)]"
+                        : ""
+                    }
+                  >
+                    <div
+                      className={`group px-4 py-2 text-neutral-900  text-base whitespace-pre-line break-words relative transition-colors backdrop-bl-lg
                       ${
                         msg.role === "user"
                           ? "bg-neutral-100/80 rounded-2xl shadow-2xl text-neutral-900 border border-neutral-200/60 ring-1 ring-neutral-300/20"
                           : ""
                       }
                     `}
-                  >
-                    {msg.role === "assistant" && !msg.content ? (
-                      <div className="flex items-center gap-2 animate-pulse">
-                        <span className="animate-pulse">正在思考</span>
-                      </div>
-                    ) : editingMsgId === msg.id ? (
-                      <div className="relative w-full">
-                        <Input.TextArea
-                          autoSize={{ minRows: 4, maxRows: 6 }}
-                          className="w-full pr-28 resize-none"
-                          value={editingValue}
-                          variant="borderless"
-                          onChange={(e) => setEditingValue(e.target.value)}
-                          onPressEnter={(e) => {
-                            if (!e.shiftKey) {
-                              e.preventDefault()
-                              handleEditOk()
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") handleEditCancel()
-                          }}
-                          autoFocus
-                        />
-                        <div className="absolute bottom-0 right-0 flex gap-2 z-10">
-                          <Button
-                            size="small"
-                            type="primary"
-                            onClick={handleEditOk}
-                            disabled={!editingValue.trim()}
-                          >
-                            发送
-                          </Button>
-                          <Button size="small" onClick={handleEditCancel}>
-                            取消
-                          </Button>
+                    >
+                      {msg.role === "assistant" &&
+                      msg.isLoading &&
+                      !msg.content ? (
+                        <div className="flex items-center gap-2 animate-pulse">
+                          <span className="animate-pulse">正在思考</span>
                         </div>
-                      </div>
-                    ) : (
-                      msg.content
-                    )}
-                    {typeof msg.id === "number" && msg.role === "assistant" && (
-                      <div className="absolute left-0.5 bottom-[-40px] mb-2 ml-2 flex z-10">
-                        <Button
-                          className="p-0"
-                          type="text"
-                          onClick={() => onResendMessage?.(msg.id!)}
-                          icon={<RedoOutlined />}
-                        />
-                        <Button
-                          className="p-0"
-                          type="text"
-                          onClick={() => handleCopy(msg.id!, msg.content)}
-                          icon={
-                            copiedMsgId === msg.id ? (
-                              <CheckOutlined />
-                            ) : (
-                              <CopyOutlined />
-                            )
-                          }
-                          title={copiedMsgId === msg.id ? "已复制" : "复制"}
-                        />
-                      </div>
-                    )}
-                    {typeof msg.id === "number" && msg.role === "user" && (
-                      <div className="absolute right-0 bottom-[-40px] flex justify-end opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <Button
-                          className="p-0"
-                          type="text"
-                          icon={<EditOutlined />}
-                          title="编辑"
-                          onClick={() => handleEdit(msg.id!, msg.content)}
-                        />
-                        <Button
-                          className="p-0"
-                          type="text"
-                          onClick={() => handleCopy(msg.id!, msg.content)}
-                          icon={
-                            copiedMsgId === msg.id ? (
-                              <CheckOutlined />
-                            ) : (
-                              <CopyOutlined />
-                            )
-                          }
-                          title={copiedMsgId === msg.id ? "已复制" : "复制"}
-                        />
-                      </div>
-                    )}
+                      ) : editingMsgId === msg.id ? (
+                        <div className="relative w-full">
+                          <Input.TextArea
+                            autoSize={{ minRows: 4, maxRows: 6 }}
+                            className="w-full pr-28 resize-none"
+                            value={editingValue}
+                            variant="borderless"
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onPressEnter={(e) => {
+                              if (!e.shiftKey) {
+                                e.preventDefault()
+                                handleEditOk()
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") handleEditCancel()
+                            }}
+                            autoFocus
+                          />
+                          <div className="absolute bottom-0 right-0 flex gap-2 z-10">
+                            <Button
+                              size="small"
+                              type="primary"
+                              onClick={handleEditOk}
+                              disabled={!editingValue.trim()}
+                            >
+                              发送
+                            </Button>
+                            <Button size="small" onClick={handleEditCancel}>
+                              取消
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        msg.content
+                      )}
+                      {typeof msg.id === "number" &&
+                        msg.role === "assistant" &&
+                        !msg.isLoading && (
+                          <div className="absolute left-0.5 bottom-[-40px] mb-2 ml-2 flex z-10">
+                            <Button
+                              className="p-0"
+                              type="text"
+                              onClick={() => onResendMessage?.(msg.id!)}
+                              icon={<RedoOutlined />}
+                            />
+                            <Button
+                              className="p-0"
+                              type="text"
+                              onClick={() => handleCopy(msg.id!, msg.content)}
+                              icon={
+                                copiedMsgId === msg.id ? (
+                                  <CheckOutlined />
+                                ) : (
+                                  <CopyOutlined />
+                                )
+                              }
+                              title={copiedMsgId === msg.id ? "已复制" : "复制"}
+                            />
+                          </div>
+                        )}
+                      {typeof msg.id === "number" && msg.role === "user" && (
+                        <div className="absolute right-0 bottom-[-40px] flex justify-end opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <Button
+                            className="p-0"
+                            type="text"
+                            icon={<EditOutlined />}
+                            title="编辑"
+                            onClick={() => handleEdit(msg.id!, msg.content)}
+                          />
+                          <Button
+                            className="p-0"
+                            type="text"
+                            onClick={() => handleCopy(msg.id!, msg.content)}
+                            icon={
+                              copiedMsgId === msg.id ? (
+                                <CheckOutlined />
+                              ) : (
+                                <CopyOutlined />
+                              )
+                            }
+                            title={copiedMsgId === msg.id ? "已复制" : "复制"}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
