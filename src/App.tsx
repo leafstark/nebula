@@ -126,7 +126,11 @@ function App() {
   const [renameValue, setRenameValue] = useState("")
   const [collapsed, setCollapsed] = useState(false)
 
-  // 新增：用于延迟派发 resend 事件，避免 setSessions 闭包导致多次副作用
+  const [editingMessage, setEditingMessage] = useState<{
+    id: number
+    content: string
+  } | null>(null)
+
   const [pendingResend, setPendingResend] = useState<{
     sessionId: number
     messages: Message[]
@@ -134,16 +138,15 @@ function App() {
     model: string
   } | null>(null)
 
-  // 保存模型源
   const handleSaveModelSources = (configs: ModelSourceConfig[]) => {
     setModelSources(configs)
     localStorage.setItem("modelSources", JSON.stringify(configs))
   }
-  // 保存智能长记忆
+
   const handleSaveSummary = (summary: boolean) => {
     setUseSummary(summary)
   }
-  // 保存系统提示词
+
   const handleSaveSystemPrompt = () => {
     if (activeSessionId) {
       // 更新当前活动会话的 systemPrompt
@@ -156,17 +159,26 @@ function App() {
     setSystemPromptModalVisible(false)
   }
 
-  // 新建会话
+  const handleStartEdit = (messageId: number, content: string) => {
+    setEditingMessage({ id: messageId, content })
+    setInput(content) // 将消息内容回填到输入框
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMessage(null)
+    setInput("") // 清空输入框
+  }
+
   const handleNewSession = () => {
     setActiveSessionId(null)
     setInput("")
     setSystemPrompt("")
   }
-  // 切换会话
+
   const handleSelectSession = (id: number) => {
     setActiveSessionId(id)
   }
-  // 删除会话
+
   const handleDeleteSession = (id: number) => {
     setSessions((prevSessions) => {
       const filtered = prevSessions.filter((s) => s.id !== id)
@@ -410,16 +422,26 @@ function App() {
               messages={current?.messages || []}
               activeSessionId={activeSessionId}
               onResendMessage={handleResendMessage}
-              onEditMessage={handleEditMessage}
+              onStartEdit={handleStartEdit}
             />
             {/* 输入栏 */}
             <ChatInput
               input={input}
               setInput={setInput}
-              onSend={handleSend}
+              onSend={
+                editingMessage
+                  ? (e) => {
+                      e.preventDefault()
+                      handleEditMessage(editingMessage.id, input)
+                      handleCancelEdit()
+                    }
+                  : handleSend
+              }
               activeSessionId={activeSessionId}
               isStreaming={isStreaming}
               onStopStream={stopStream}
+              isEditing={!!editingMessage}
+              onCancelEdit={handleCancelEdit}
             />
             {/* 设置弹窗 */}
             <SettingsModal

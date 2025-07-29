@@ -8,6 +8,8 @@ interface Props {
   activeSessionId: number | null // 新增 activeSessionId prop
   isStreaming: boolean
   onStopStream: () => void
+  isEditing?: boolean
+  onCancelEdit?: () => void
 }
 
 export default function ChatInput({
@@ -17,6 +19,8 @@ export default function ChatInput({
   activeSessionId,
   isStreaming,
   onStopStream,
+  isEditing,
+  onCancelEdit,
 }: Props) {
   const positionClass =
     activeSessionId === null ? "top-2/5 -translate-y-1/2" : "bottom-8"
@@ -49,7 +53,12 @@ export default function ChatInput({
           />
         </div>
         {/* 按钮区：居中放在输入框下方 */}
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end items-center mt-4">
+          {isEditing && (
+            <Button type="text" onClick={onCancelEdit} className="mr-2">
+              取消
+            </Button>
+          )}
           {isStreaming ? (
             <Button
               type="text"
@@ -79,7 +88,7 @@ export default function ChatInput({
               htmlType="submit"
               disabled={!input.trim()}
               tabIndex={0}
-              aria-label="发送"
+              aria-label={isEditing ? "确认修改" : "发送"}
             />
           )}
         </div>

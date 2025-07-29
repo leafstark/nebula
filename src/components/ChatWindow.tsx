@@ -1,4 +1,4 @@
-import { Button, Input } from "antd"
+import { Button } from "antd"
 import {
   RedoOutlined,
   CopyOutlined,
@@ -18,14 +18,14 @@ interface Props {
   messages: Message[]
   activeSessionId: number | null
   onResendMessage?: (messageId: number) => void
-  onEditMessage?: (messageId: number, newContent: string) => void // 修正类型
+  onStartEdit: (messageId: number, content: string) => void
 }
 
 export default function ChatWindow({
   messages,
   activeSessionId,
   onResendMessage,
-  onEditMessage,
+  onStartEdit,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastUserMsgRef = useRef<HTMLDivElement>(null) // 保留，虽然当前滚动逻辑不直接用它定位
@@ -179,31 +179,6 @@ export default function ChatWindow({
     }
   }
 
-  // 编辑相关状态
-  const [editingMsgId, setEditingMsgId] = useState<number | null>(null)
-  const [editingValue, setEditingValue] = useState("")
-
-  // 触发编辑
-  const handleEdit = (msgId: number, content: string) => {
-    setEditingMsgId(msgId)
-    setEditingValue(content)
-  }
-
-  // 取消编辑
-  const handleEditCancel = () => {
-    setEditingMsgId(null)
-    setEditingValue("")
-  }
-
-  // 确认编辑
-  const handleEditOk = () => {
-    if (editingMsgId !== null && editingValue.trim()) {
-      onEditMessage?.(editingMsgId, editingValue.trim())
-    }
-    setEditingMsgId(null)
-    setEditingValue("")
-  }
-
   return (
     <div className="flex flex-col h-full">
       <div
@@ -242,39 +217,6 @@ export default function ChatWindow({
                         <div className="flex items-center gap-2 animate-pulse">
                           <span className="animate-pulse">正在思考</span>
                         </div>
-                      ) : editingMsgId === msg.id ? (
-                        <div className="relative w-full">
-                          <Input.TextArea
-                            autoSize={{ minRows: 4, maxRows: 6 }}
-                            className="w-full pr-28 resize-none"
-                            value={editingValue}
-                            variant="borderless"
-                            onChange={(e) => setEditingValue(e.target.value)}
-                            onPressEnter={(e) => {
-                              if (!e.shiftKey) {
-                                e.preventDefault()
-                                handleEditOk()
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Escape") handleEditCancel()
-                            }}
-                            autoFocus
-                          />
-                          <div className="absolute bottom-0 right-0 flex gap-2 z-10">
-                            <Button
-                              size="small"
-                              type="primary"
-                              onClick={handleEditOk}
-                              disabled={!editingValue.trim()}
-                            >
-                              发送
-                            </Button>
-                            <Button size="small" onClick={handleEditCancel}>
-                              取消
-                            </Button>
-                          </div>
-                        </div>
                       ) : (
                         msg.content
                       )}
@@ -310,7 +252,7 @@ export default function ChatWindow({
                             type="text"
                             icon={<EditOutlined />}
                             title="编辑"
-                            onClick={() => handleEdit(msg.id!, msg.content)}
+                            onClick={() => onStartEdit(msg.id!, msg.content)}
                           />
                           <Button
                             className="p-0"
