@@ -6,6 +6,7 @@ import {
   DeleteOutlined,
   FormOutlined,
 } from "@ant-design/icons"
+import { useTranslation } from "react-i18next"
 
 interface Message {
   id?: number
@@ -39,6 +40,7 @@ export default function SessionList({
   onDeleteSession,
   onRenameSession,
 }: Props) {
+  const { t } = useTranslation()
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [deletingSessionId, setDeletingSessionId] = useState<number | null>(
     null
@@ -70,13 +72,15 @@ export default function SessionList({
         onClick={onNewSession}
         className="mb-6 pl-3"
       >
-        <span className="text-left w-full">新聊天</span>
+        <span className="text-left w-full">{t("sidebar.newChat")}</span>
       </Button>
-      <span className="text-neutral-400 pl-3 text-sm mb-2">聊天</span>
+      <span className="text-neutral-400 pl-3 text-sm mb-2">
+        {t("sidebar.chats")}
+      </span>
       <div className="w-full flex-1 max-h-full shrink-0">
         {sessions.length === 0 ? (
           <div className="text-neutral-300 text-sm text-center mt-16">
-            暂无会话
+            {t("sidebar.empty")}
           </div>
         ) : (
           <ul className="space-y-2">
@@ -87,7 +91,7 @@ export default function SessionList({
                   icon: <EditFilled />,
                   label: (
                     <span onClick={() => onRenameSession(s.id, s.name)}>
-                      重命名
+                      {t("session.rename")}
                     </span>
                   ),
                 },
@@ -95,7 +99,9 @@ export default function SessionList({
                   key: "delete",
                   icon: <DeleteOutlined />,
                   label: (
-                    <span onClick={() => showDeleteModal(s.id)}>删除</span>
+                    <span onClick={() => showDeleteModal(s.id)}>
+                      {t("common.delete")}
+                    </span>
                   ),
                 },
               ]
@@ -130,7 +136,7 @@ export default function SessionList({
                           ? "flex"
                           : "hidden group-hover:flex"
                       }`}
-                      title="更多操作"
+                      title={t("common.more")}
                     />
                   </Dropdown>
                 </li>
@@ -140,15 +146,15 @@ export default function SessionList({
         )}
       </div>
       <Modal
-        title="确定要删除该会话吗？"
+        title={t("session.deleteConfirmTitle")}
         open={isDeleteModalOpen}
         onOk={handleDeleteOk}
         onCancel={handleDeleteCancel}
-        okText="删除"
-        cancelText="取消"
+        okText={t("common.delete")}
+        cancelText={t("common.cancel")}
         okButtonProps={{ danger: true }}
       >
-        <p className="my-5"> 删除后，该对话将不可恢复。确认删除吗？</p>
+        <p className="my-5"> {t("session.deleteConfirmDetail")}</p>
       </Modal>
     </div>
   )

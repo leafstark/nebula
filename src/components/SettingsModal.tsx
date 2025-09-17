@@ -18,6 +18,7 @@ import {
   PlusOutlined,
   EditOutlined,
 } from "@ant-design/icons"
+import { useTranslation } from "react-i18next"
 
 interface ModelConfig {
   id: string
@@ -46,6 +47,7 @@ export default function SettingsModal({
   modelSources,
   useSummary,
 }: SettingsModalProps) {
+  const { t } = useTranslation()
   const [sources, setSources] = useState<ModelSourceConfig[]>([])
   const [summary, setSummary] = useState(true)
   const [selectedSourceIdx, setSelectedSourceIdx] = useState(0)
@@ -79,9 +81,9 @@ export default function SettingsModal({
       try {
         localStorage.setItem("modelSources", JSON.stringify(sources))
         onSaveModelSources(sources)
-        message.success("模型源已自动保存", 1)
+        message.success(t("settings.modelSources.autoSaved"), 1)
       } catch {
-        message.error("模型源保存失败")
+        message.error(t("settings.modelSources.saveFail"))
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,9 +95,9 @@ export default function SettingsModal({
     if (summary !== useSummary) {
       try {
         onSaveSummary(summary)
-        message.success("智能长记忆设置已保存", 1)
+        message.success(t("settings.summary.saved"), 1)
       } catch {
-        message.error("智能长记忆保存失败")
+        message.error(t("settings.summary.saveFail"))
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,7 +127,6 @@ export default function SettingsModal({
 
   // 删除模型源
   const handleRemoveSource = (idx: number) => {
-    console.log("Removing source at index:", idx)
     setSources((srcs) => {
       const next = srcs.filter((_, i) => i !== idx)
       if (selectedSourceIdx === idx) {
@@ -187,19 +188,19 @@ export default function SettingsModal({
   // 模型表格
   const getModelColumns = (sourceIdx: number) => [
     {
-      title: "模型 ID",
+      title: t("settings.modelId"),
       dataIndex: "id",
       key: "id",
       render: (text: string) => <span>{text}</span>,
     },
     {
-      title: "名称（可选）",
+      title: t("settings.modelNameOptional"),
       dataIndex: "name",
       key: "name",
       render: (text: string) => <span>{text}</span>,
     },
     {
-      title: "操作",
+      title: t("common.actions"),
       key: "action",
       render: (_text: string, record: ModelConfig, mIdx: number) => (
         <div className="flex items-center">
@@ -210,7 +211,7 @@ export default function SettingsModal({
             onClick={() => handleEditModel(record, mIdx)}
           />
           <Popconfirm
-            title="确定删除该模型？"
+            title={t("settings.confirmDeleteModel")}
             onConfirm={() => handleRemoveModel(sourceIdx, mIdx)}
             okText=""
             cancelText=""
@@ -225,7 +226,11 @@ export default function SettingsModal({
 
   return (
     <Modal
-      title={<span className="font-bold text-lg text-neutral-800">设置</span>}
+      title={
+        <span className="font-bold text-lg text-neutral-800">
+          {t("settings.title")}
+        </span>
+      }
       open={visible}
       onCancel={onClose}
       footer={null}
@@ -242,12 +247,16 @@ export default function SettingsModal({
             {
               key: "source",
               icon: <SettingOutlined />,
-              label: <span className="font-medium">模型源</span>,
+              label: (
+                <span className="font-medium">{t("settings.modelSource")}</span>
+              ),
             },
             {
               key: "memory",
               icon: <BulbOutlined />,
-              label: <span className="font-medium">智能长记忆</span>,
+              label: (
+                <span className="font-medium">{t("settings.longMemory")}</span>
+              ),
             },
           ]}
         />
@@ -270,11 +279,12 @@ export default function SettingsModal({
                       style={{ outline: "none" }}
                     >
                       <span className="truncate flex-1">
-                        {src.name?.trim() || `模型源${idx + 1}`}
+                        {src.name?.trim() ||
+                          t("settings.modelSourceN", { n: idx + 1 })}
                       </span>
                       {
                         <Popconfirm
-                          title="确定删除该模型源？"
+                          title={t("settings.confirmDeleteModelSource")}
                           onConfirm={(e) => {
                             e?.stopPropagation?.()
                             handleRemoveSource(idx)
@@ -303,7 +313,7 @@ export default function SettingsModal({
                   className="mt-2"
                   icon={<PlusOutlined />}
                 >
-                  添加模型源
+                  {t("settings.addModelSource")}
                 </Button>
               </div>
               {/* 右侧详情 */}
@@ -322,7 +332,7 @@ export default function SettingsModal({
                               e.target.value
                             )
                           }
-                          placeholder="模型源名称"
+                          placeholder={t("settings.modelSourceName")}
                           autoComplete="off"
                           className="rounded-lg text-base text-neutral-700 w-48"
                           maxLength={32}
@@ -361,7 +371,7 @@ export default function SettingsModal({
                       />
                     </div>
                     <div className="mb-2 font-medium text-neutral-700">
-                      模型列表
+                      {t("settings.modelList")}
                     </div>
                     <Table
                       dataSource={(sources[selectedSourceIdx].models || []).map(
@@ -379,11 +389,15 @@ export default function SettingsModal({
                       onClick={handleAddModel}
                       className="mt-2"
                     >
-                      添加模型
+                      {t("settings.addModel")}
                     </Button>
                     {/* 添加/编辑模型弹窗 */}
                     <Modal
-                      title={editingModel ? "编辑模型" : "添加模型"}
+                      title={
+                        editingModel
+                          ? t("settings.editModel")
+                          : t("settings.addModel")
+                      }
                       open={addModelModalVisible}
                       onCancel={() => {
                         setAddModelModalVisible(false)
@@ -391,8 +405,8 @@ export default function SettingsModal({
                         addModelForm.resetFields()
                       }}
                       onOk={handleSaveModel}
-                      okText="保存"
-                      cancelText="取消"
+                      okText={t("common.save")}
+                      cancelText={t("common.cancel")}
                       destroyOnClose
                     >
                       <Form
@@ -401,14 +415,25 @@ export default function SettingsModal({
                         initialValues={{ id: "", name: "" }}
                       >
                         <Form.Item
-                          label="模型 ID"
+                          label={t("settings.modelId")}
                           name="id"
-                          rules={[{ required: true, message: "请输入模型 ID" }]}
+                          rules={[
+                            {
+                              required: true,
+                              message: t("settings.enterModelId"),
+                            },
+                          ]}
                         >
-                          <Input placeholder="模型 ID" autoFocus />
+                          <Input
+                            placeholder={t("settings.modelId")}
+                            autoFocus
+                          />
                         </Form.Item>
-                        <Form.Item label="模型名称（可选）" name="name">
-                          <Input placeholder="模型名称" />
+                        <Form.Item
+                          label={t("settings.modelNameOptional")}
+                          name="name"
+                        >
+                          <Input placeholder={t("settings.modelName")} />
                         </Form.Item>
                       </Form>
                     </Modal>
@@ -421,7 +446,7 @@ export default function SettingsModal({
             <div className="py-3">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-base text-neutral-700 font-medium select-none">
-                  智能长记忆
+                  {t("settings.longMemory")}
                 </span>
                 <Switch
                   checked={summary}
@@ -437,7 +462,7 @@ export default function SettingsModal({
                 />
               </div>
               <div className="text-xs text-neutral-500">
-                启用后，系统会自动对长对话进行摘要，提升上下文理解能力。
+                {t("settings.longMemoryDesc")}
               </div>
             </div>
           )}

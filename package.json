@@ -13,7 +13,9 @@
     "@ant-design/icons": "^6.0.0",
     "@tailwindcss/vite": "^4.1.7",
     "antd": "^5.25.1",
+    "i18next": "^23.11.5",
     "idb": "^8.0.3",
+    "react-i18next": "^15.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

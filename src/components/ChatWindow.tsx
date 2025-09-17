@@ -6,6 +6,7 @@ import {
   EditOutlined,
 } from "@ant-design/icons"
 import { useRef, useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 export type Message = {
   role: string
@@ -164,6 +165,7 @@ export default function ChatWindow({
 
   // 复制按钮的“已复制”状态
   const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null)
+  const { t } = useTranslation()
 
   // 复制逻辑，和 Typography.Text copyable 效果一致
   const handleCopy = async (msgId: number, content: string) => {
@@ -215,7 +217,9 @@ export default function ChatWindow({
                       msg.isLoading &&
                       !msg.content ? (
                         <div className="flex items-center gap-2 animate-pulse">
-                          <span className="animate-pulse">正在思考</span>
+                          <span className="animate-pulse">
+                            {t("chat.thinking")}
+                          </span>
                         </div>
                       ) : (
                         msg.content

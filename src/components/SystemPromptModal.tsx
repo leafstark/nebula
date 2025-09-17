@@ -1,4 +1,5 @@
 import { Input, Button } from "antd"
+import { useTranslation } from "react-i18next"
 
 interface Props {
   visible: boolean
@@ -15,12 +16,13 @@ export default function SystemPromptModal({
   onOk,
   onCancel,
 }: Props) {
+  const { t } = useTranslation()
   if (!visible) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white rounded-2xl shadow-2xl p-8 min-w-[360px] max-w-[30vw] w-full flex flex-col gap-5 border border-neutral-100">
         <div className="text-xl font-bold mb-2 text-neutral-800">
-          系统提示词
+          {t("system.prompt")}
         </div>
         <Input.TextArea
           value={value}
@@ -30,7 +32,7 @@ export default function SystemPromptModal({
           }}
           autoSize={{ minRows: 4, maxRows: 8 }}
           maxLength={2000}
-          placeholder="请输入系统提示词"
+          placeholder={t("system.prompt.placeholder")}
           className="rounded-lg border border-neutral-200 bg-neutral-50 text-base text-neutral-800 focus:border-neutral-400 focus:bg-white transition"
           autoFocus
         />
@@ -39,14 +41,14 @@ export default function SystemPromptModal({
             onClick={onCancel}
             className="rounded-lg px-6 py-2 text-base border border-neutral-200 bg-white hover:bg-neutral-100"
           >
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             type="primary"
             onClick={onOk}
             className="rounded-lg px-6 py-2 text-base custom-settings-save-btn"
           >
-            确定
+            {t("common.ok")}
           </Button>
         </div>
       </div>

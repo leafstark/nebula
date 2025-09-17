@@ -1,5 +1,6 @@
 import { Input, Button } from "antd"
 import { UpCircleFilled } from "@ant-design/icons"
+import { useTranslation } from "react-i18next"
 
 interface Props {
   input: string
@@ -22,6 +23,7 @@ export default function ChatInput({
   isEditing,
   onCancelEdit,
 }: Props) {
+  const { t } = useTranslation()
   const positionClass =
     activeSessionId === null ? "top-2/5 -translate-y-1/2" : "bottom-8"
 
@@ -38,7 +40,7 @@ export default function ChatInput({
           <Input.TextArea
             className="flex-1 border-0 focus:border-0 resize-none bg-transparent text-base px-0 py-1 shadow-none focus:shadow-none min-h-0 max-h-32"
             style={{ boxShadow: "none", background: "transparent" }}
-            placeholder="询问任何问题"
+            placeholder={t("input.placeholder")}
             autoSize={{ minRows: 1, maxRows: 4 }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -56,7 +58,7 @@ export default function ChatInput({
         <div className="flex justify-end items-center mt-4">
           {isEditing && (
             <Button type="text" onClick={onCancelEdit} className="mr-2">
-              取消
+              {t("input.cancelEdit")}
             </Button>
           )}
           {isStreaming ? (
@@ -78,7 +80,7 @@ export default function ChatInput({
               }
               onClick={onStopStream}
               tabIndex={0}
-              aria-label="终止"
+              aria-label={t("input.stop")}
             />
           ) : (
             <Button
@@ -88,7 +90,7 @@ export default function ChatInput({
               htmlType="submit"
               disabled={!input.trim()}
               tabIndex={0}
-              aria-label={isEditing ? "确认修改" : "发送"}
+              aria-label={t(isEditing ? "input.confirmEdit" : "input.send")}
             />
           )}
         </div>

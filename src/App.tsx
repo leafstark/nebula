@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react"
-import { Select, Layout, Button } from "antd"
+import { Select, Layout, Button, Dropdown } from "antd"
 import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BulbOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons"
 
 import SessionList from "./components/SessionList"
@@ -17,6 +18,8 @@ import { useSessions } from "./hooks/useSessions"
 import { useModel } from "./hooks/useModel"
 import { useChatStream } from "./hooks/useChatStream"
 import type { Message } from "./components/ChatWindow"
+import { useTranslation } from "react-i18next"
+import { changeLanguage } from "./i18n"
 
 // 类型定义
 interface ModelConfig {
@@ -56,6 +59,7 @@ const DEFAULT_MODEL_SOURCE: ModelSourceConfig = {
 }
 
 function App() {
+  const { t, i18n } = useTranslation()
   // 设置弹窗
   const [settingsVisible, setSettingsVisible] = useState(false)
   const [modelSources, setModelSources] = useState<ModelSourceConfig[]>(() => {
@@ -325,19 +329,24 @@ function App() {
     }
   }, [pendingResend])
 
-  // 移除旧的 pendingSystemPrompt 相关逻辑
-
   // 当前会话
   const current = sessions.find((s) => s.id === activeSessionId)
 
   // 模型分组：按模型源分组，分组名为模型源的名称（apiKey + baseUrl 组合或自定义名称）
   const groupedModels = modelSources.map((cfg, idx) => ({
-    label: cfg.name?.trim() ? cfg.name : cfg.baseUrl || `模型源${idx + 1}`,
+    label: cfg.name?.trim()
+      ? cfg.name
+      : cfg.baseUrl || t("settings.modelSourceN", { n: idx + 1 }),
     options: cfg.models.map((m) => ({
       label: m.name?.trim() ? m.name : m.id,
       value: m.id,
     })),
   }))
+
+  const langItems = [
+    { key: "zh", label: "中文", onClick: () => changeLanguage("zh") },
+    { key: "en", label: "English", onClick: () => changeLanguage("en") },
+  ]
 
   return (
     <Layout className="h-screen bg-gradient-to-br from-neutral-100 via-white to-neutral-100">
@@ -371,7 +380,7 @@ function App() {
           />
         )}
         <div className="h-16 flex items-center justify-center font-sans text-3xl font-bold tracking-tight text-neutral-700">
-          Nebula
+          {t("app.title")}
         </div>
         <SessionList
           sessions={sessions}
@@ -399,20 +408,29 @@ function App() {
               type="text"
               size="large"
               icon={<BulbOutlined />}
-              title="系统提示词"
+              title={t("system.prompt")}
               onClick={() => {
-                // 打开弹窗时，systemPrompt state 已通过 useEffect 与当前会话同步
-                // 或保留了为新会话准备的值
                 setSystemPromptModalVisible(true)
               }}
             />
           </div>
-          <Button
-            type="text"
-            size="large"
-            icon={<SettingOutlined />}
-            onClick={() => setSettingsVisible(true)}
-          />
+          <div className="flex items-center gap-2">
+            <Dropdown
+              menu={{ items: langItems }}
+              placement="bottomRight"
+              trigger={["click"]}
+            >
+              <Button type="text" size="large" icon={<GlobalOutlined />}>
+                {i18n.language === "zh" ? "中文" : "EN"}
+              </Button>
+            </Dropdown>
+            <Button
+              type="text"
+              size="large"
+              icon={<SettingOutlined />}
+              onClick={() => setSettingsVisible(true)}
+            />
+          </div>
         </Layout.Header>
         {/* 主体区域 */}
         <Layout.Content className="flex-1 flex flex-col">
